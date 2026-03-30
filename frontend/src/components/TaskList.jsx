@@ -203,7 +203,11 @@ export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0
                   <tr key={task.id} className="group hover:bg-whiten transition-colors">
                     <td className="py-4 pr-4">
                       <p className="font-medium text-sidebar">{task.title}</p>
-                      {task.creator?.name && <p className="mt-1 text-xs text-gray-400">by {task.creator.name}</p>}
+                      {userRole === 'manager' ? (
+                        task.assignee?.name && <p className="mt-1 text-xs text-gray-400">Assigned to: {task.assignee.name}</p>
+                      ) : (
+                        task.creator?.name && <p className="mt-1 text-xs text-gray-400">by {task.creator.name}</p>
+                      )}
                       {task.description && (
                         <>
                           {getOriginalDescription(task.description) && (
