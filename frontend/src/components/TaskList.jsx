@@ -9,6 +9,9 @@ export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0
   const [taskFiles, setTaskFiles] = useState({});
   const [taskTexts, setTaskTexts] = useState({});
   const [taskError, setTaskError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('due_date');
+  const [sortDir, setSortDir] = useState('asc');
 
   useEffect(() => {
     if (selectedDate) {
@@ -173,6 +176,66 @@ export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0
     && (task.status === 'in_progress' || task.status === 'pending_review')
   );
 
+  const filterTasks = () => {
+    return tasks.filter((task) =>
+      task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      task.description.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  };
+
+  const sortTasks = (tasksToSort) => {
+    const sorted = [...tasksToSort];
+    sorted.sort((a, b) => {
+      let aVal, bVal;
+      
+      if (sortBy === 'due_date') {
+        aVal = new Date(a.due_date || 0);
+        bVal = new Date(b.due_date || 0);
+      } else if (sortBy === 'priority') {
+        const priorityOrder = { low: 0, medium: 1, high: 2, critical: 3 };
+        aVal = priorityOrder[a.priority] || 0;
+        bVal = priorityOrder[b.priority] || 0;
+      } else if (sortBy === 'status') {
+        aVal = a.status;
+        bVal = b.status;
+      } else if (sortBy === 'assignee') {
+        aVal = a.assignee?.name || '';
+        bVal = b.assignee?.name || '';
+      }
+
+      if (aVal < bVal) return sortDir === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  };
+
+  const exportTasksCSV = () => {
+    const filtered = filterTasks();
+    const headers = ['Title', 'Description', 'Assigned To', 'Priority', 'Due Date', 'Status'];
+    const rows = filtered.map((task) => [
+      task.title,
+      task.description,
+      task.assignee?.name || '-',
+      task.priority,
+      new Date(task.due_date).toLocaleDateString(),
+      task.status?.replace('_', ' '),
+    ]);
+
+    const csv = [
+      headers.join(','),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
+    ].join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tasks-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="ta-card">
       <div className="ta-card-header flex items-center justify-between">
@@ -180,6 +243,38 @@ export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0
         <span className="text-sm text-gray-400">{tasks.length} task{tasks.length !== 1 ? 's' : ''}</span>
       </div>
       <div className="ta-card-body">
+        {/* Search, Sort, Export Controls */}
+        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end">
+          <div className="flex-1">
+            <label className="ta-label !mb-1">Search</label>
+            <input
+              type="text"
+              placeholder="Search tasks by title or description..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="ta-input"
+            />
+          </div>
+          <div className="w-full md:w-40">
+            <label className="ta-label !mb-1">Sort By</label>
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="ta-input">
+              <option value="due_date">Due Date</option>
+              <option value="priority">Priority</option>
+              <option value="status">Status</option>
+              <option value="assignee">Assignee</option>
+            </select>
+          </div>
+          <div className="w-full md:w-24">
+            <label className="ta-label !mb-1">Order</label>
+            <select value={sortDir} onChange={(e) => setSortDir(e.target.value)} className="ta-input">
+              <option value="asc">Ascending</option>
+              <option value="desc">Descending</option>
+            </select>
+          </div>
+          <button onClick={exportTasksCSV} className="ta-btn-secondary h-10">
+            📥 Export CSV
+          </button>
+        </div>
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-stroke border-t-primary" />
@@ -199,7 +294,7 @@ export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0
                 </tr>
               </thead>
               <tbody className="divide-y divide-stroke">
-                {tasks.map((task) => (
+                {sortTasks(filterTasks()).map((task) => (
                   <tr key={task.id} className="group hover:bg-whiten transition-colors">
                     <td className="py-4 pr-4">
                       <p className="font-medium text-sidebar">{task.title}</p>

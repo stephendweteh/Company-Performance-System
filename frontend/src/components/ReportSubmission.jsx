@@ -14,6 +14,9 @@ export const ReportSubmission = ({ selectedDate, userRole, onReportSubmitted }) 
   const [reports, setReports] = useState([]);
   const [loadingReports, setLoadingReports] = useState(false);
   const [responseByReport, setResponseByReport] = useState({});
+  const [reportSearchTerm, setReportSearchTerm] = useState('');
+  const [reportSortBy, setReportSortBy] = useState('report_date');
+  const [reportSortDir, setReportSortDir] = useState('desc');
 
   const canSubmit = ['employee', 'employer'].includes(userRole);
   const canRespond = ['manager', 'employer', 'super_admin'].includes(userRole);
@@ -139,24 +142,128 @@ export const ReportSubmission = ({ selectedDate, userRole, onReportSubmitted }) 
     return userRole === 'super_admin';
   };
 
+  const filterReports = () => {
+    return visibleReports.filter((report) => {
+      const search = reportSearchTerm.toLowerCase();
+      const title = (report.title || '').toLowerCase();
+      const date = (report.report_date || '').toLowerCase();
+      const employeeName = (report.employee?.name || '').toLowerCase();
+
+      return title.includes(search) || date.includes(search) || employeeName.includes(search);
+    });
+  };
+
+  const sortReports = (reportsToSort) => {
+    const sorted = [...reportsToSort];
+    sorted.sort((a, b) => {
+      let aVal, bVal;
+
+      if (reportSortBy === 'report_date') {
+        aVal = new Date(a.report_date || '');
+        bVal = new Date(b.report_date || '');
+      } else if (reportSortBy === 'employee_name') {
+        aVal = (a.employee?.name || '').toLowerCase();
+        bVal = (b.employee?.name || '').toLowerCase();
+      } else if (reportSortBy === 'status') {
+        aVal = (a.status || '').toLowerCase();
+        bVal = (b.status || '').toLowerCase();
+      } else {
+        return 0;
+      }
+
+      if (reportSortDir === 'asc') {
+        return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+      } else {
+        return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+      }
+    });
+
+    return sorted;
+  };
+
+  const exportReportsCSV = () => {
+    const reportsToExport = sortReports(filterReports());
+    if (reportsToExport.length === 0) {
+      alert('No reports to export');
+      return;
+    }
+
+    const headers = ['Date', 'Employee', 'Title', 'Status', 'Work Done'];
+    const rows = reportsToExport.map((report) => [
+      report.report_date || '',
+      report.employee?.name || '',
+      report.title || '',
+      getReportStatusLabel(report.status) || '',
+      (report.work_done || '').replace(/"/g, '""'),
+    ]);
+
+    const csv = [
+      headers.join(','),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
+    ].join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `reports_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
       <div className="ta-card">
-        <div className="ta-card-header flex items-center justify-between">
-          <h3 className="font-semibold text-sidebar">
-            {userRole === 'employer' ? 'Submitted & Reviewed Reports' : 'Submitted Reports'}
-          </h3>
-          <button className="ta-btn-secondary" onClick={fetchReports}>
-            {loadingReports ? 'Loading...' : 'Refresh'}
-          </button>
+        <div className="ta-card-header">
+          <div className="mb-4 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-sidebar">
+                {userRole === 'employer' ? 'Submitted & Reviewed Reports' : 'Submitted Reports'}
+              </h3>
+              <button className="ta-btn-secondary" onClick={fetchReports}>
+                {loadingReports ? 'Loading...' : 'Refresh'}
+              </button>
+            </div>
+            <input
+              type="text"
+              placeholder="Search reports..."
+              className="ta-input"
+              value={reportSearchTerm}
+              onChange={(e) => setReportSearchTerm(e.target.value)}
+            />
+            <div className="flex flex-wrap gap-2">
+              <select
+                className="ta-input flex-1"
+                value={reportSortBy}
+                onChange={(e) => setReportSortBy(e.target.value)}
+              >
+                <option value="report_date">Sort by Date</option>
+                <option value="employee_name">Sort by Employee</option>
+                <option value="status">Sort by Status</option>
+              </select>
+              <select
+                className="ta-input flex-1"
+                value={reportSortDir}
+                onChange={(e) => setReportSortDir(e.target.value)}
+              >
+                <option value="desc">Newest First</option>
+                <option value="asc">Oldest First</option>
+              </select>
+              <button className="ta-btn-primary" onClick={exportReportsCSV}>
+                Export CSV
+              </button>
+            </div>
+          </div>
         </div>
         <div className="ta-card-body space-y-4">
-          {visibleReports.length === 0 ? (
+          {sortReports(filterReports()).length === 0 ? (
             <p className="text-sm text-gray-400">
-              {userRole === 'employer' ? 'No submitted or reviewed reports available.' : 'No reports available.'}
+              {reportSearchTerm ? 'No reports match your search.' : (userRole === 'employer' ? 'No submitted or reviewed reports available.' : 'No reports available.')}
             </p>
           ) : (
-            visibleReports.map((report) => (
+            sortReports(filterReports()).map((report) => (
               <div key={report.id} className="rounded-sm border border-stroke p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h4 className="font-semibold text-sidebar">{report.title}</h4>

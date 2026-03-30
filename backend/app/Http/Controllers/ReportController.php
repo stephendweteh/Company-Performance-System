@@ -121,7 +121,10 @@ class ReportController extends Controller
         $report->load('employee');
 
         $canRespond = false;
-        if ($currentUser->role === 'employer') {
+        if ($report->employee && $report->employee->role === 'employer') {
+            // Employer-submitted reports must only be responded to by managers.
+            $canRespond = $currentUser->role === 'manager';
+        } elseif ($currentUser->role === 'employer') {
             $canRespond = $report->employee
                 && $report->employee->role === 'employee'
                 && $report->employee->company_id === $currentUser->company_id;
