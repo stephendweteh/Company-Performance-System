@@ -524,100 +524,6 @@ export const SuperAdminDashboard = () => {
 
       <div className="ta-card">
         <div className="ta-card-header">
-          <h3 className="font-semibold text-sidebar">Email and SMS Gateway Connections</h3>
-        </div>
-        <div className="ta-card-body">
-          <form onSubmit={handleSaveChannels} className="space-y-6">
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-              <div className="rounded-sm border border-stroke p-4">
-                <h4 className="text-sm font-semibold text-sidebar">SMTP Configuration</h4>
-                <p className="mb-4 mt-1 text-xs text-gray-400">Configure outgoing email delivery.</p>
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  <div>
-                    <label className="ta-label">Host</label>
-                    <input name="smtp_host" value={channelSettings.smtp_host} onChange={handleChannelChange} className="ta-input" />
-                  </div>
-                  <div>
-                    <label className="ta-label">Port</label>
-                    <input type="number" name="smtp_port" value={channelSettings.smtp_port} onChange={handleChannelChange} className="ta-input" />
-                  </div>
-                  <div>
-                    <label className="ta-label">Encryption</label>
-                    <select name="smtp_encryption" value={channelSettings.smtp_encryption} onChange={handleChannelChange} className="ta-input">
-                      <option value="">None</option>
-                      <option value="tls">TLS</option>
-                      <option value="ssl">SSL</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="ta-label">Username</label>
-                    <input name="smtp_username" value={channelSettings.smtp_username} onChange={handleChannelChange} className="ta-input" />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="ta-label">Password</label>
-                    <input type="password" name="smtp_password" value={channelSettings.smtp_password} onChange={handleChannelChange} className="ta-input" placeholder={channelSettings.has_smtp_password ? 'Saved password exists. Enter to replace.' : ''} />
-                    <label className="mt-2 flex items-center gap-2 text-xs text-gray-500">
-                      <input type="checkbox" checked={clearSmtpPassword} onChange={(e) => setClearSmtpPassword(e.target.checked)} />
-                      Clear saved SMTP password
-                    </label>
-                  </div>
-                  <div>
-                    <label className="ta-label">From Email</label>
-                    <input type="email" name="smtp_from_email" value={channelSettings.smtp_from_email} onChange={handleChannelChange} className="ta-input" />
-                  </div>
-                  <div>
-                    <label className="ta-label">From Name</label>
-                    <input name="smtp_from_name" value={channelSettings.smtp_from_name} onChange={handleChannelChange} className="ta-input" />
-                  </div>
-                </div>
-                <div className="mt-4 flex flex-col gap-2 md:flex-row">
-                  <input type="email" value={smtpTestEmail} onChange={(e) => setSmtpTestEmail(e.target.value)} placeholder="test@example.com" className="ta-input flex-1" required />
-                  <button type="button" onClick={handleTestSmtp} disabled={smtpTesting || !smtpTestEmail} className="ta-btn-secondary whitespace-nowrap disabled:opacity-60">
-                    {smtpTesting ? 'Testing...' : 'Send SMTP Test'}
-                  </button>
-                </div>
-              </div>
-
-              <div className="rounded-sm border border-stroke p-4">
-                <h4 className="text-sm font-semibold text-sidebar">Arkesel SMS Configuration</h4>
-                <p className="mb-4 mt-1 text-xs text-gray-400">Configure SMS delivery through Arkesel API.</p>
-                <div className="grid grid-cols-1 gap-3">
-                  <div>
-                    <label className="ta-label">API URL</label>
-                    <input name="arkesel_api_url" value={channelSettings.arkesel_api_url} onChange={handleChannelChange} className="ta-input" />
-                  </div>
-                  <div>
-                    <label className="ta-label">Sender ID</label>
-                    <input name="arkesel_sender_id" value={channelSettings.arkesel_sender_id} onChange={handleChannelChange} className="ta-input" />
-                  </div>
-                  <div>
-                    <label className="ta-label">API Key</label>
-                    <input type="password" name="arkesel_api_key" value={channelSettings.arkesel_api_key} onChange={handleChannelChange} className="ta-input" placeholder={channelSettings.has_arkesel_api_key ? 'Saved key exists. Enter to replace.' : ''} />
-                    <label className="mt-2 flex items-center gap-2 text-xs text-gray-500">
-                      <input type="checkbox" checked={clearArkeselApiKey} onChange={(e) => setClearArkeselApiKey(e.target.checked)} />
-                      Clear saved Arkesel API key
-                    </label>
-                  </div>
-                </div>
-                <div className="mt-4 space-y-2">
-                  <input value={smsTestPhone} onChange={(e) => setSmsTestPhone(e.target.value)} placeholder="Recipient phone number" className="ta-input" required />
-                  <textarea value={smsTestMessage} onChange={(e) => setSmsTestMessage(e.target.value)} className="ta-input resize-none" rows={2} />
-                  <button type="button" onClick={handleTestSms} disabled={smsTesting || !smsTestPhone} className="ta-btn-secondary disabled:opacity-60">
-                    {smsTesting ? 'Testing...' : 'Send SMS Test'}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <button type="submit" disabled={settingsSaving} className="ta-btn-primary disabled:opacity-60">
-              {settingsSaving ? 'Saving...' : 'Save Gateway Settings'}
-            </button>
-          </form>
-        </div>
-      </div>
-
-      <div className="ta-card">
-        <div className="ta-card-header">
           <h3 className="font-semibold text-sidebar">User Management</h3>
         </div>
         <div className="ta-card-body">
@@ -720,6 +626,100 @@ export const SuperAdminDashboard = () => {
               <p className="py-8 text-center text-sm text-gray-400">No users match the current filter.</p>
             )}
           </div>
+        </div>
+      </div>
+
+      <div className="ta-card">
+        <div className="ta-card-header">
+          <h3 className="font-semibold text-sidebar">Email and SMS Gateway Connections</h3>
+        </div>
+        <div className="ta-card-body">
+          <form onSubmit={handleSaveChannels} className="space-y-6">
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+              <div className="rounded-sm border border-stroke p-4">
+                <h4 className="text-sm font-semibold text-sidebar">SMTP Configuration</h4>
+                <p className="mb-4 mt-1 text-xs text-gray-400">Configure outgoing email delivery.</p>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div>
+                    <label className="ta-label">Host</label>
+                    <input name="smtp_host" value={channelSettings.smtp_host} onChange={handleChannelChange} className="ta-input" />
+                  </div>
+                  <div>
+                    <label className="ta-label">Port</label>
+                    <input type="number" name="smtp_port" value={channelSettings.smtp_port} onChange={handleChannelChange} className="ta-input" />
+                  </div>
+                  <div>
+                    <label className="ta-label">Encryption</label>
+                    <select name="smtp_encryption" value={channelSettings.smtp_encryption} onChange={handleChannelChange} className="ta-input">
+                      <option value="">None</option>
+                      <option value="tls">TLS</option>
+                      <option value="ssl">SSL</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="ta-label">Username</label>
+                    <input name="smtp_username" value={channelSettings.smtp_username} onChange={handleChannelChange} className="ta-input" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="ta-label">Password</label>
+                    <input type="password" name="smtp_password" value={channelSettings.smtp_password} onChange={handleChannelChange} className="ta-input" placeholder={channelSettings.has_smtp_password ? 'Saved password exists. Enter to replace.' : ''} />
+                    <label className="mt-2 flex items-center gap-2 text-xs text-gray-500">
+                      <input type="checkbox" checked={clearSmtpPassword} onChange={(e) => setClearSmtpPassword(e.target.checked)} />
+                      Clear saved SMTP password
+                    </label>
+                  </div>
+                  <div>
+                    <label className="ta-label">From Email</label>
+                    <input type="email" name="smtp_from_email" value={channelSettings.smtp_from_email} onChange={handleChannelChange} className="ta-input" />
+                  </div>
+                  <div>
+                    <label className="ta-label">From Name</label>
+                    <input name="smtp_from_name" value={channelSettings.smtp_from_name} onChange={handleChannelChange} className="ta-input" />
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-col gap-2 md:flex-row">
+                  <input type="email" value={smtpTestEmail} onChange={(e) => setSmtpTestEmail(e.target.value)} placeholder="test@example.com" className="ta-input flex-1" required />
+                  <button type="button" onClick={handleTestSmtp} disabled={smtpTesting || !smtpTestEmail} className="ta-btn-secondary whitespace-nowrap disabled:opacity-60">
+                    {smtpTesting ? 'Testing...' : 'Send SMTP Test'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-sm border border-stroke p-4">
+                <h4 className="text-sm font-semibold text-sidebar">Arkesel SMS Configuration</h4>
+                <p className="mb-4 mt-1 text-xs text-gray-400">Configure SMS delivery through Arkesel API.</p>
+                <div className="grid grid-cols-1 gap-3">
+                  <div>
+                    <label className="ta-label">API URL</label>
+                    <input name="arkesel_api_url" value={channelSettings.arkesel_api_url} onChange={handleChannelChange} className="ta-input" />
+                  </div>
+                  <div>
+                    <label className="ta-label">Sender ID</label>
+                    <input name="arkesel_sender_id" value={channelSettings.arkesel_sender_id} onChange={handleChannelChange} className="ta-input" />
+                  </div>
+                  <div>
+                    <label className="ta-label">API Key</label>
+                    <input type="password" name="arkesel_api_key" value={channelSettings.arkesel_api_key} onChange={handleChannelChange} className="ta-input" placeholder={channelSettings.has_arkesel_api_key ? 'Saved key exists. Enter to replace.' : ''} />
+                    <label className="mt-2 flex items-center gap-2 text-xs text-gray-500">
+                      <input type="checkbox" checked={clearArkeselApiKey} onChange={(e) => setClearArkeselApiKey(e.target.checked)} />
+                      Clear saved Arkesel API key
+                    </label>
+                  </div>
+                </div>
+                <div className="mt-4 space-y-2">
+                  <input value={smsTestPhone} onChange={(e) => setSmsTestPhone(e.target.value)} placeholder="Recipient phone number" className="ta-input" required />
+                  <textarea value={smsTestMessage} onChange={(e) => setSmsTestMessage(e.target.value)} className="ta-input resize-none" rows={2} />
+                  <button type="button" onClick={handleTestSms} disabled={smsTesting || !smsTestPhone} className="ta-btn-secondary disabled:opacity-60">
+                    {smsTesting ? 'Testing...' : 'Send SMS Test'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" disabled={settingsSaving} className="ta-btn-primary disabled:opacity-60">
+              {settingsSaving ? 'Saving...' : 'Save Gateway Settings'}
+            </button>
+          </form>
         </div>
       </div>
 
