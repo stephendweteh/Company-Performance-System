@@ -22,6 +22,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
     Route::get('users', [UserController::class, 'index']);
 
+    // Membership management
+    Route::get('pending-memberships', [AuthController::class, 'getPendingMemberships']);
+    Route::put('memberships/{user}/respond', [AuthController::class, 'respondToMembership']);
+
     Route::get('admin/overview', [AdminController::class, 'overview']);
     Route::get('admin/notification-channels', [AdminController::class, 'notificationChannels']);
     Route::put('admin/notification-channels', [AdminController::class, 'updateNotificationChannels']);

@@ -21,6 +21,7 @@ class User extends Authenticatable
         'role',
         'company_id',
         'team_id',
+        'membership_status',
     ];
 
     protected $appends = [

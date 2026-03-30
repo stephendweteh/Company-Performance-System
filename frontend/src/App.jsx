@@ -93,8 +93,12 @@ function App() {
                       </div>
                       <div className="flex flex-col gap-2">
                         <button onClick={() => setActiveTab('tasks')}    className="ta-btn-primary text-xs">View Tasks</button>
-                        <button onClick={() => setActiveTab('reports')}  className="ta-btn-secondary text-xs">Submit Report</button>
-                        <button onClick={() => setActiveTab('wins')}     className="ta-btn-secondary text-xs">Log Achievement</button>
+                        <button onClick={() => setActiveTab('reports')}  className="ta-btn-secondary text-xs">
+                          {user?.role === 'manager' ? 'View Reports' : 'Submit Report'}
+                        </button>
+                        <button onClick={() => setActiveTab('wins')}     className="ta-btn-secondary text-xs">
+                          {user?.role === 'manager' ? 'View Achievements' : 'Log Achievement'}
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -106,7 +110,7 @@ function App() {
           {/* ── Tasks ── */}
           {activeTab === 'tasks' && (
             <div className="space-y-6">
-              {canAssignTasks && <TaskCreator onTaskCreated={() => {}} />}
+              {canAssignTasks && <TaskCreator userRole={user?.role} onTaskCreated={() => {}} />}
               {selectedDate
                 ? <TaskList selectedDate={selectedDate} userRole={user?.role} />
                 : <DatePrompt label="view and manage tasks" />
@@ -116,16 +120,20 @@ function App() {
 
           {/* ── Reports ── */}
           {activeTab === 'reports' && (
-            selectedDate
-              ? <ReportSubmission selectedDate={selectedDate} onReportSubmitted={() => {}} />
-              : <DatePrompt label="submit a daily report" />
+            ['manager', 'super_admin'].includes(user?.role)
+              ? <ReportSubmission selectedDate={selectedDate} userRole={user?.role} />
+              : selectedDate
+                ? <ReportSubmission selectedDate={selectedDate} userRole={user?.role} onReportSubmitted={() => {}} />
+                : <DatePrompt label="submit a daily report" />
           )}
 
           {/* ── Wins ── */}
           {activeTab === 'wins' && (
-            selectedDate
-              ? <WinsRecorder selectedDate={selectedDate} onWinRecorded={() => {}} />
-              : <DatePrompt label="record an achievement" />
+            ['manager', 'super_admin'].includes(user?.role)
+              ? <WinsRecorder selectedDate={selectedDate} userRole={user?.role} />
+              : selectedDate
+                ? <WinsRecorder selectedDate={selectedDate} userRole={user?.role} onWinRecorded={() => {}} />
+                : <DatePrompt label="record an achievement" />
           )}
 
           {/* ── Companies ── */}
@@ -152,11 +160,30 @@ function App() {
 function LoginPage() {
   const [mode, setMode] = useState('login');
   const [formData, setFormData] = useState({
-    name: '', email: '', password: '', password_confirmation: '', role: 'employee',
+    name: '', email: '', password: '', password_confirmation: '', company_id: '',
   });
+  const [companies, setCompanies] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [registrationPending, setRegistrationPending] = useState(false);
   const { login } = useContext(AuthContext);
+
+  // Fetch companies when registration mode is entered
+  React.useEffect(() => {
+    if (mode === 'register' && companies.length === 0) {
+      fetchCompanies();
+    }
+  }, [mode]);
+
+  const fetchCompanies = async () => {
+    try {
+      const { default: api } = await import('./services/api');
+      const response = await api.get('/api/companies');
+      setCompanies(response.data);
+    } catch (err) {
+      console.error('Failed to fetch companies:', err);
+    }
+  };
 
   const handleChange = (e) =>
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -165,6 +192,7 @@ function LoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
+    setRegistrationPending(false);
     try {
       if (mode === 'login') {
         await login(formData.email, formData.password);
@@ -174,16 +202,29 @@ function LoginPage() {
           setLoading(false);
           return;
         }
+        if (!formData.company_id) {
+          setError('Please select a company');
+          setLoading(false);
+          return;
+        }
         const { default: api } = await import('./services/api');
         await api.post('/api/register', formData);
-        await login(formData.email, formData.password);
+        setRegistrationPending(true);
+        setFormData({ name: '', email: '', password: '', password_confirmation: '', company_id: '' });
+        setError('');
       }
     } catch (err) {
-      const msg = err.response?.data?.message
-        || (err.response?.data?.errors
-          ? Object.values(err.response.data.errors).flat().join(' · ')
-          : 'An error occurred. Please try again.');
-      setError(typeof msg === 'string' ? msg : JSON.stringify(msg));
+      // Handle membership pending status
+      if (err.response?.status === 403 && err.response?.data?.status === 'pending') {
+        setRegistrationPending(true);
+        setError(err.response?.data?.message);
+      } else {
+        const msg = err.response?.data?.message
+          || (err.response?.data?.errors
+            ? Object.values(err.response.data.errors).flat().join(' · ')
+            : 'An error occurred. Please try again.');
+        setError(typeof msg === 'string' ? msg : JSON.stringify(msg));
+      }
     }
     setLoading(false);
   };
@@ -243,6 +284,13 @@ function LoginPage() {
               : 'Fill in the details below to get started.'}
           </p>
 
+          {registrationPending && !mode === 'register' && (
+            <div className="mb-6 rounded border border-success/30 bg-success/10 px-4 py-4 text-sm text-success">
+              <div className="font-semibold mb-1">Registration Successful</div>
+              <p>Your membership is pending approval fom your company employer or super admin. You will receive a notification once your request is approved.</p>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-5">
             {mode === 'register' && (
               <div>
@@ -272,43 +320,60 @@ function LoginPage() {
                     onChange={handleChange} required className="ta-input" placeholder="••••••••" />
                 </div>
                 <div>
-                  <label className="ta-label">I am registering as</label>
-                  <select name="role" value={formData.role} onChange={handleChange} className="ta-input">
-                    <option value="employee">Employee</option>
-                    <option value="employer">Employer</option>
+                  <label className="ta-label">Select Your Company</label>
+                  <select name="company_id" value={formData.company_id} onChange={handleChange} required className="ta-input">
+                    <option value="">Choose a company...</option>
+                    {companies.map(company => (
+                      <option key={company.id} value={company.id}>{company.name}</option>
+                    ))}
                   </select>
                 </div>
               </>
             )}
 
             {error && (
-              <div className="rounded border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
+              <div className={`rounded border px-4 py-3 text-sm ${registrationPending 
+                ? 'border-warning/30 bg-warning/10 text-warning' 
+                : 'border-danger/30 bg-danger/10 text-danger'}`}>
                 {error}
               </div>
             )}
 
-            <button type="submit" disabled={loading} className="ta-btn-primary w-full py-3 disabled:opacity-60">
-              {loading
-                ? 'Please wait…'
-                : mode === 'login' ? 'Sign In' : 'Create Account'}
-            </button>
+            {!registrationPending && (
+              <button type="submit" disabled={loading} className="ta-btn-primary w-full py-3 disabled:opacity-60">
+                {loading
+                  ? 'Please wait…'
+                  : mode === 'login' ? 'Sign In' : 'Create Account'}
+              </button>
+            )}
           </form>
 
-          <p className="mt-6 text-center text-sm text-gray-500">
-            {mode === 'login' ? (
-              <>Don't have an account?{' '}
-                <button onClick={() => { setMode('register'); setError(''); }}
-                  className="font-semibold text-primary hover:underline">Register
-                </button>
-              </>
-            ) : (
-              <>Already have an account?{' '}
-                <button onClick={() => { setMode('login'); setError(''); }}
-                  className="font-semibold text-primary hover:underline">Sign In
-                </button>
-              </>
-            )}
-          </p>
+          {!registrationPending && (
+            <p className="mt-6 text-center text-sm text-gray-500">
+              {mode === 'login' ? (
+                <>Don't have an account?{' '}
+                  <button onClick={() => { setMode('register'); setError(''); }}
+                    className="font-semibold text-primary hover:underline">Register
+                  </button>
+                </>
+              ) : (
+                <>Already have an account?{' '}
+                  <button onClick={() => { setMode('login'); setError(''); }}
+                    className="font-semibold text-primary hover:underline">Sign In
+                  </button>
+                </>
+              )}
+            </p>
+          )}
+
+          {registrationPending && (
+            <div className="mt-6 text-center">
+              <button onClick={() => { setMode('login'); setError(''); setRegistrationPending(false); }}
+                className="font-semibold text-primary hover:underline">
+                Back to Login
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
