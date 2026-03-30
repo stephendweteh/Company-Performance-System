@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../services/api';
 
-export const TaskCreator = ({ onTaskCreated }) => {
+export const TaskCreator = ({ userRole, onTaskCreated }) => {
   const [employees, setEmployees] = useState([]);
   const [teams, setTeams] = useState([]);
   const [formData, setFormData] = useState({
@@ -17,14 +17,16 @@ export const TaskCreator = ({ onTaskCreated }) => {
   const [message, setMessage] = useState('');
   const [showForm, setShowForm] = useState(false);
 
+  const assigneeRole = userRole === 'manager' ? 'employer' : 'employee';
+
   useEffect(() => {
     fetchEmployees();
     fetchTeams();
-  }, []);
+  }, [userRole]);
 
   const fetchEmployees = async () => {
     try {
-      const response = await axios.get('/api/users?role=employee', {
+      const response = await axios.get(`/api/users?role=${assigneeRole}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
       setEmployees(response.data);
@@ -111,18 +113,20 @@ export const TaskCreator = ({ onTaskCreated }) => {
             </div>
 
             <div>
-              <label className="ta-label">Assign To *</label>
+              <label className="ta-label">Assign To ({assigneeRole === 'employer' ? 'Employer' : 'Employee'}) *</label>
               {employees.length > 0 ? (
                 <select name="assigned_to" value={formData.assigned_to} onChange={handleChange}
                   required className="ta-input">
-                  <option value="">— Select Employee —</option>
+                  <option value="">— Select {assigneeRole === 'employer' ? 'Employer' : 'Employee'} —</option>
                   {employees.map((emp) => (
-                    <option key={emp.id} value={emp.id}>{emp.name} ({emp.email})</option>
+                    <option key={emp.id} value={emp.id}>
+                      {emp.name} ({emp.email}){emp.company?.company_name ? ` - ${emp.company.company_name}` : ''}
+                    </option>
                   ))}
                 </select>
               ) : (
                 <input type="number" name="assigned_to" value={formData.assigned_to}
-                  onChange={handleChange} required className="ta-input" placeholder="Employee ID" />
+                  onChange={handleChange} required className="ta-input" placeholder={`${assigneeRole === 'employer' ? 'Employer' : 'Employee'} ID`} />
               )}
             </div>
 

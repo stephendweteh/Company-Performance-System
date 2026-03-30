@@ -4,7 +4,7 @@ import { AuthContext } from '../../context/AuthContext';
 const tabLabels = {
   calendar:      'Dashboard',
   tasks:         'Tasks',
-  reports:       'Reports',
+  reports:       'Reports & Responses',
   wins:          'Achievements',
   companies:     'Companies',
   notifications: 'Notifications',

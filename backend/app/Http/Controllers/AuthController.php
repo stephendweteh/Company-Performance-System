@@ -143,12 +143,15 @@ class AuthController extends Controller
             $pendingUsers = User::where('membership_status', 'pending')
                 ->where('role', 'employee')
                 ->with('company')
+                ->orderBy('name')
                 ->get();
         } else {
             // Employer can only see pending memberships for their company
             $pendingUsers = User::where('company_id', $user->company_id)
                 ->where('membership_status', 'pending')
                 ->where('role', 'employee')
+                ->with('company')
+                ->orderBy('name')
                 ->get();
         }
 

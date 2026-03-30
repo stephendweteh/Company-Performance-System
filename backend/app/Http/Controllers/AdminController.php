@@ -219,6 +219,10 @@ class AdminController extends Controller
             $query->where('role', $request->role);
         }
 
+        if ($request->filled('membership_status')) {
+            $query->where('membership_status', $request->membership_status);
+        }
+
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($builder) use ($search) {
@@ -246,8 +250,11 @@ class AdminController extends Controller
             'email' => 'required|email|max:255|unique:users,email',
             'password' => 'required|string|min:8',
             'role' => 'required|in:super_admin,employer,manager,employee',
+            'phone' => 'nullable|string|max:30',
+            'bio' => 'nullable|string|max:2000',
             'company_id' => 'nullable|exists:companies,id',
             'team_id' => 'nullable|exists:teams,id',
+            'membership_status' => 'nullable|in:pending,accepted,rejected',
         ]);
 
         $user = User::create([
@@ -255,8 +262,11 @@ class AdminController extends Controller
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role' => $validated['role'],
+            'phone' => $validated['phone'] ?? null,
+            'bio' => $validated['bio'] ?? null,
             'company_id' => $validated['company_id'] ?? null,
             'team_id' => $validated['team_id'] ?? null,
+            'membership_status' => $validated['membership_status'] ?? 'accepted',
         ]);
 
         return response()->json($user->load('company', 'team'), 201);
@@ -277,8 +287,11 @@ class AdminController extends Controller
             ],
             'password' => 'nullable|string|min:8',
             'role' => 'sometimes|required|in:super_admin,employer,manager,employee',
+            'phone' => 'nullable|string|max:30',
+            'bio' => 'nullable|string|max:2000',
             'company_id' => 'nullable|exists:companies,id',
             'team_id' => 'nullable|exists:teams,id',
+            'membership_status' => 'nullable|in:pending,accepted,rejected',
         ]);
 
         if (array_key_exists('role', $validated) && $request->user()->id === $user->id && $validated['role'] !== 'super_admin') {

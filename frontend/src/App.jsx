@@ -178,10 +178,11 @@ function LoginPage() {
   const fetchCompanies = async () => {
     try {
       const { default: api } = await import('./services/api');
-      const response = await api.get('/api/companies');
+      const response = await api.get('/api/public/companies');
       setCompanies(response.data);
     } catch (err) {
       console.error('Failed to fetch companies:', err);
+      setError('Unable to load companies. Please try again.');
     }
   };
 
@@ -324,7 +325,7 @@ function LoginPage() {
                   <select name="company_id" value={formData.company_id} onChange={handleChange} required className="ta-input">
                     <option value="">Choose a company...</option>
                     {companies.map(company => (
-                      <option key={company.id} value={company.id}>{company.name}</option>
+                      <option key={company.id} value={company.id}>{company.company_name}</option>
                     ))}
                   </select>
                 </div>

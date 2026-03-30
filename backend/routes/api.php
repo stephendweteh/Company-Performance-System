@@ -14,6 +14,7 @@ use App\Http\Controllers\UserController;
 // Public auth routes
 Route::post('register', [AuthController::class, 'register']);
 Route::post('login',    [AuthController::class, 'login']);
+Route::get('public/companies', [CompanyController::class, 'publicIndex']);
 
 // Protected routes
 Route::middleware(['auth:sanctum'])->group(function () {

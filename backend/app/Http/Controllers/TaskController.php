@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Task;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class TaskController extends Controller
@@ -41,6 +42,8 @@ class TaskController extends Controller
     {
         abort_unless($this->canAssign($request->user()), 403, 'Forbidden');
 
+        $creator = $request->user();
+
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'required|string',
@@ -50,6 +53,22 @@ class TaskController extends Controller
             'due_date' => 'required|date|after_or_equal:start_date',
             'priority' => 'required|in:low,medium,high,critical',
         ]);
+
+        $assignee = User::findOrFail($validated['assigned_to']);
+
+        if ($creator->role === 'manager' && $assignee->role !== 'employer') {
+            return response()->json(['message' => 'Managers can only assign tasks to employers.'], 422);
+        }
+
+        if ($creator->role === 'employer') {
+            if ($assignee->role !== 'employee') {
+                return response()->json(['message' => 'Employers can only assign tasks to employees.'], 422);
+            }
+
+            if ($assignee->company_id !== $creator->company_id) {
+                return response()->json(['message' => 'Employers can only assign tasks to employees in their company.'], 422);
+            }
+        }
 
         $task = Task::create([
             ...$validated,

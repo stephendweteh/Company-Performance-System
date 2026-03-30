@@ -11,17 +11,22 @@ class Report extends Model
 
     protected $fillable = [
         'employee_id',
+        'reviewer_id',
+        'response_by',
         'report_date',
         'title',
         'work_done',
         'challenges',
         'wins',
         'status',
+        'response_comment',
+        'responded_at',
         'attachments',
     ];
 
     protected $casts = [
         'report_date' => 'date',
+        'responded_at' => 'datetime',
         'attachments' => 'array',
     ];
 
@@ -33,5 +38,15 @@ class Report extends Model
     public function employee()
     {
         return $this->belongsTo(User::class, 'employee_id');
+    }
+
+    public function reviewer()
+    {
+        return $this->belongsTo(User::class, 'reviewer_id');
+    }
+
+    public function responder()
+    {
+        return $this->belongsTo(User::class, 'response_by');
     }
 }

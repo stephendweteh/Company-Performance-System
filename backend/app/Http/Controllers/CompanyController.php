@@ -7,6 +7,16 @@ use Illuminate\Http\Request;
 
 class CompanyController extends Controller
 {
+    public function publicIndex()
+    {
+        return response()->json(
+            Company::query()
+                ->select('id', 'company_name')
+                ->orderBy('company_name')
+                ->get()
+        );
+    }
+
     protected function canView($user)
     {
         return $user && in_array($user->role, ['employer', 'manager', 'super_admin']);

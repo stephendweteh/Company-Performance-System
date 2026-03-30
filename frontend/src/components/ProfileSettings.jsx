@@ -7,6 +7,9 @@ const ProfileSettings = ({ user, onProfileUpdated }) => {
     email: user?.email || '',
     phone: user?.phone || '',
     bio: user?.bio || '',
+    current_password: '',
+    password: '',
+    password_confirmation: '',
   });
   const [photoFile, setPhotoFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');
@@ -19,6 +22,9 @@ const ProfileSettings = ({ user, onProfileUpdated }) => {
       email: user?.email || '',
       phone: user?.phone || '',
       bio: user?.bio || '',
+      current_password: '',
+      password: '',
+      password_confirmation: '',
     });
     setPreviewUrl('');
     setPhotoFile(null);
@@ -51,6 +57,9 @@ const ProfileSettings = ({ user, onProfileUpdated }) => {
       payload.append('email', formData.email);
       payload.append('phone', formData.phone);
       payload.append('bio', formData.bio);
+      payload.append('current_password', formData.current_password || '');
+      payload.append('password', formData.password || '');
+      payload.append('password_confirmation', formData.password_confirmation || '');
       if (photoFile) {
         payload.append('profile_photo', photoFile);
       }
@@ -124,6 +133,20 @@ const ProfileSettings = ({ user, onProfileUpdated }) => {
             <div>
               <label className="ta-label">Bio</label>
               <textarea name="bio" value={formData.bio} onChange={handleChange} rows={5} className="ta-input resize-none" placeholder="Tell us about yourself" />
+            </div>
+            <div className="grid grid-cols-1 gap-4 rounded-sm border border-stroke p-4 md:grid-cols-3">
+              <div>
+                <label className="ta-label">Current Password</label>
+                <input type="password" name="current_password" value={formData.current_password} onChange={handleChange} className="ta-input" placeholder="Required to change password" />
+              </div>
+              <div>
+                <label className="ta-label">New Password</label>
+                <input type="password" name="password" value={formData.password} onChange={handleChange} className="ta-input" placeholder="Leave blank to keep current" />
+              </div>
+              <div>
+                <label className="ta-label">Confirm New Password</label>
+                <input type="password" name="password_confirmation" value={formData.password_confirmation} onChange={handleChange} className="ta-input" placeholder="Repeat new password" />
+              </div>
             </div>
             <button type="submit" disabled={saving} className="ta-btn-primary disabled:opacity-60">
               {saving ? 'Saving...' : 'Save Profile'}

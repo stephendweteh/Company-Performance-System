@@ -1,13 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from '../services/api';
+import PendingMembershipRequests from './PendingMembershipRequests';
 
 const emptyForm = {
   name: '',
   email: '',
   password: '',
   role: 'employee',
+  phone: '',
+  bio: '',
   company_id: '',
   team_id: '',
+  membership_status: 'accepted',
 };
 
 const emptyChannelSettings = {
@@ -32,6 +36,7 @@ export const SuperAdminDashboard = () => {
   const [teams, setTeams] = useState([]);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
+  const [membershipFilter, setMembershipFilter] = useState('all');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -97,6 +102,10 @@ export const SuperAdminDashboard = () => {
       params.role = roleFilter;
     }
 
+    if (membershipFilter !== 'all') {
+      params.membership_status = membershipFilter;
+    }
+
     if (search.trim()) {
       params.search = search.trim();
     }
@@ -133,7 +142,7 @@ export const SuperAdminDashboard = () => {
     fetchUsers().catch((error) => {
       setMessage(error.response?.data?.message || 'Failed to load users.');
     });
-  }, [roleFilter]);
+  }, [roleFilter, membershipFilter]);
 
   const handleSearchSubmit = async (event) => {
     event.preventDefault();
@@ -163,8 +172,11 @@ export const SuperAdminDashboard = () => {
       email: user.email || '',
       password: '',
       role: user.role || 'employee',
+      phone: user.phone || '',
+      bio: user.bio || '',
       company_id: user.company_id ? String(user.company_id) : '',
       team_id: user.team_id ? String(user.team_id) : '',
+      membership_status: user.membership_status || 'accepted',
     });
     setEditingUserId(user.id);
     setShowForm(true);
@@ -185,8 +197,11 @@ export const SuperAdminDashboard = () => {
         name: formData.name,
         email: formData.email,
         role: formData.role,
+        phone: formData.phone || null,
+        bio: formData.bio || null,
         company_id: formData.company_id || null,
         team_id: formData.team_id || null,
+        membership_status: formData.membership_status || 'accepted',
       };
 
       if (formData.password.trim()) {
@@ -343,6 +358,13 @@ export const SuperAdminDashboard = () => {
       employee: 'ta-badge-primary',
     }[role] || 'ta-badge-primary');
 
+  const membershipBadge = (status) => {
+    if (status === 'rejected') return 'ta-badge-danger';
+    if (status === 'pending') return 'ta-badge-warning';
+
+    return 'ta-badge-success';
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -372,6 +394,11 @@ export const SuperAdminDashboard = () => {
           </div>
         ))}
       </div>
+
+      <PendingMembershipRequests
+        title="Pending Membership Approvals"
+        description="Accept or reject new employee registrations across all companies."
+      />
 
       {showForm && (
         <div className="ta-card">
@@ -403,6 +430,18 @@ export const SuperAdminDashboard = () => {
                 </select>
               </div>
               <div>
+                <label className="ta-label">Phone</label>
+                <input name="phone" value={formData.phone} onChange={handleFormChange} className="ta-input" />
+              </div>
+              <div>
+                <label className="ta-label">Membership Status</label>
+                <select name="membership_status" value={formData.membership_status} onChange={handleFormChange} className="ta-input">
+                  <option value="accepted">Accepted</option>
+                  <option value="pending">Pending</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+              <div>
                 <label className="ta-label">Company</label>
                 <select name="company_id" value={formData.company_id} onChange={handleFormChange} className="ta-input">
                   <option value="">No company</option>
@@ -419,6 +458,10 @@ export const SuperAdminDashboard = () => {
                     <option key={team.id} value={team.id}>{team.team_name}</option>
                   ))}
                 </select>
+              </div>
+              <div className="md:col-span-2">
+                <label className="ta-label">Bio</label>
+                <textarea name="bio" value={formData.bio} onChange={handleFormChange} className="ta-input resize-none" rows={3} />
               </div>
               <div className="md:col-span-2">
                 <button type="submit" disabled={saving} className="ta-btn-primary w-full md:w-auto disabled:opacity-60">
@@ -550,6 +593,15 @@ export const SuperAdminDashboard = () => {
                 <option value="employee">Employee</option>
               </select>
             </div>
+            <div>
+              <label className="ta-label">Membership</label>
+              <select value={membershipFilter} onChange={(e) => setMembershipFilter(e.target.value)} className="ta-input">
+                <option value="all">All statuses</option>
+                <option value="accepted">Accepted</option>
+                <option value="pending">Pending</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -559,6 +611,7 @@ export const SuperAdminDashboard = () => {
                   <th className="pb-3 text-left font-semibold text-gray-500">Name</th>
                   <th className="pb-3 text-left font-semibold text-gray-500">Email</th>
                   <th className="pb-3 text-left font-semibold text-gray-500">Role</th>
+                  <th className="pb-3 text-left font-semibold text-gray-500">Membership</th>
                   <th className="pb-3 text-left font-semibold text-gray-500">Company</th>
                   <th className="pb-3 text-left font-semibold text-gray-500">Team</th>
                   <th className="pb-3 text-left font-semibold text-gray-500">Role Quick Change</th>
@@ -573,6 +626,11 @@ export const SuperAdminDashboard = () => {
                     <td className="py-4 pr-4">
                       <span className={roleBadge(user.role)}>{user.role?.replace('_', ' ')}</span>
                     </td>
+                    <td className="py-4 pr-4">
+                      <span className={membershipBadge(user.membership_status)}>
+                        {(user.membership_status || 'accepted').replace('_', ' ')}
+                      </span>
+                    </td>
                     <td className="py-4 pr-4 text-gray-500">{user.company?.company_name || '-'}</td>
                     <td className="py-4 pr-4 text-gray-500">{user.team?.team_name || '-'}</td>
                     <td className="py-4 pr-4">
@@ -580,12 +638,17 @@ export const SuperAdminDashboard = () => {
                         value={user.role}
                         onChange={(e) => handleRoleChange(user.id, e.target.value)}
                         className="ta-input !py-1 !text-xs"
+                        disabled={(user.membership_status || 'accepted') !== 'accepted'}
+                        title={(user.membership_status || 'accepted') !== 'accepted' ? 'Quick role change is only available for accepted users.' : ''}
                       >
                         <option value="super_admin">Super Admin</option>
                         <option value="employer">Employer</option>
                         <option value="manager">Manager</option>
                         <option value="employee">Employee</option>
                       </select>
+                      {(user.membership_status || 'accepted') !== 'accepted' && (
+                        <p className="mt-1 text-xs text-gray-400">Use Edit to change pending or rejected users.</p>
+                      )}
                     </td>
                     <td className="py-4 pr-4">
                       <div className="flex items-center gap-2">
