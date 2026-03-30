@@ -1,11 +1,70 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import axios from '../services/api';
 
 export const CalendarDashboard = ({ onDateSelect }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(null);
+  const [pendingTaskDays, setPendingTaskDays] = useState([]);
   const daysInMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1).getDay();
   const today = new Date();
+
+  const toDateString = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const parseDate = (value) => {
+    if (!value) return null;
+    return new Date(`${value}T00:00:00`);
+  };
+
+  useEffect(() => {
+    const fetchPendingTaskDays = async () => {
+      try {
+        const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+        const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+
+        const response = await axios.get('/api/tasks', {
+          params: {
+            status: 'pending',
+            start_date: toDateString(monthStart),
+            end_date: toDateString(monthEnd),
+          },
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        });
+
+        const daySet = new Set();
+
+        (response.data || []).forEach((task) => {
+          const taskStart = parseDate(task.start_date);
+          const taskEnd = parseDate(task.due_date);
+
+          if (!taskStart || !taskEnd) return;
+
+          const rangeStart = taskStart > monthStart ? taskStart : monthStart;
+          const rangeEnd = taskEnd < monthEnd ? taskEnd : monthEnd;
+
+          if (rangeStart > rangeEnd) return;
+
+          const cursor = new Date(rangeStart);
+          while (cursor <= rangeEnd) {
+            daySet.add(cursor.getDate());
+            cursor.setDate(cursor.getDate() + 1);
+          }
+        });
+
+        setPendingTaskDays(Array.from(daySet));
+      } catch (error) {
+        console.error('Failed to load calendar task indicators:', error);
+        setPendingTaskDays([]);
+      }
+    };
+
+    fetchPendingTaskDays();
+  }, [currentDate]);
 
   const handlePrevMonth = () =>
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
@@ -62,6 +121,7 @@ export const CalendarDashboard = ({ onDateSelect }) => {
             const day = i + 1;
             const active = day === selectedDay;
             const tod = isToday(day);
+            const hasPendingTask = pendingTaskDays.includes(day);
             return (
               <button
                 key={day}
@@ -76,6 +136,9 @@ export const CalendarDashboard = ({ onDateSelect }) => {
                   }`}
               >
                 {day}
+                {hasPendingTask && !active && (
+                  <span className="absolute bottom-1 h-1.5 w-1.5 rounded-full bg-warning" />
+                )}
               </button>
             );
           })}

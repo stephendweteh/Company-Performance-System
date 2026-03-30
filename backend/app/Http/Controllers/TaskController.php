@@ -15,7 +15,17 @@ class TaskController extends Controller
 
     public function index(Request $request)
     {
+        $user = $request->user();
         $query = Task::query();
+
+        if ($user && $user->role === 'employee') {
+            $query->where('assigned_to', $user->id);
+        } elseif ($user && in_array($user->role, ['manager', 'employer'])) {
+            $query->where(function ($taskQuery) use ($user) {
+                $taskQuery->where('assigned_to', $user->id)
+                    ->orWhere('created_by', $user->id);
+            });
+        }
 
         if ($request->has('status')) {
             $query->where('status', $request->status);
@@ -33,6 +43,9 @@ class TaskController extends Controller
             $date = $request->date;
             $query->whereDate('start_date', '<=', $date)
                   ->whereDate('due_date', '>=', $date);
+        } elseif ($request->filled('start_date') && $request->filled('end_date')) {
+            $query->whereDate('start_date', '<=', $request->end_date)
+                ->whereDate('due_date', '>=', $request->start_date);
         }
 
         return response()->json($query->with('assignee', 'creator', 'team')->get());
