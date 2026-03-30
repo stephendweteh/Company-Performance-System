@@ -48,7 +48,7 @@ class TaskController extends Controller
                 ->whereDate('due_date', '>=', $request->start_date);
         }
 
-        return response()->json($query->with('assignee', 'creator', 'team')->get());
+        return response()->json($query->with('assignee', 'creator', 'team', 'attachments')->get());
     }
 
     public function store(Request $request)
@@ -65,6 +65,8 @@ class TaskController extends Controller
             'start_date' => 'required|date',
             'due_date' => 'required|date|after_or_equal:start_date',
             'priority' => 'required|in:low,medium,high,critical',
+            'attachments' => 'nullable|array|max:5',
+            'attachments.*' => 'file|max:10240', // Max 10MB per file
         ]);
 
         $assignee = User::findOrFail($validated['assigned_to']);
@@ -89,12 +91,26 @@ class TaskController extends Controller
             'status' => Task::STATUS_PENDING,
         ]);
 
-        return response()->json($task->load('assignee', 'creator'), 201);
+        // Handle file attachments
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments') as $file) {
+                $filePath = $file->store('task-attachments', 'public');
+                
+                $task->attachments()->create([
+                    'file_name' => $file->getClientOriginalName(),
+                    'file_path' => $filePath,
+                    'file_type' => $file->getMimeType(),
+                    'file_size' => $file->getSize(),
+                ]);
+            }
+        }
+
+        return response()->json($task->load('assignee', 'creator', 'attachments'), 201);
     }
 
     public function show(Task $task)
     {
-        return response()->json($task->load('assignee', 'creator', 'team'));
+        return response()->json($task->load('assignee', 'creator', 'team', 'attachments'));
     }
 
     public function update(Request $request, Task $task)

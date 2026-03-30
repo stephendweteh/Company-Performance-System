@@ -13,6 +13,7 @@ export const TaskCreator = ({ userRole, selectedDate, onTaskCreated }) => {
     due_date: '',
     priority: 'medium',
   });
+  const [attachments, setAttachments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -64,18 +65,49 @@ export const TaskCreator = ({ userRole, selectedDate, onTaskCreated }) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    const newAttachments = files.map((file) => ({
+      file,
+      name: file.name,
+      size: (file.size / 1024 / 1024).toFixed(2),
+    }));
+    setAttachments((prev) => [...prev, ...newAttachments].slice(0, 5)); // Max 5 files
+  };
+
+  const removeAttachment = (index) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await axios.post('/api/tasks', formData, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      const data = new FormData();
+      
+      // Add form fields
+      Object.keys(formData).forEach((key) => {
+        data.append(key, formData[key]);
       });
+
+      // Add file attachments
+      attachments.forEach((attachment) => {
+        data.append('attachments[]', attachment.file);
+      });
+
+      await axios.post('/api/tasks', data, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      
       setMessage('Task assigned successfully!');
       setFormData({
         title: '', description: '', assigned_to: '', team_id: '',
         start_date: '', due_date: '', priority: 'medium',
       });
+      setAttachments([]);
       setShowForm(false);
       onTaskCreated && onTaskCreated();
       setTimeout(() => setMessage(''), 3000);
@@ -179,6 +211,43 @@ export const TaskCreator = ({ userRole, selectedDate, onTaskCreated }) => {
                 <option value="high">High</option>
                 <option value="critical">Critical</option>
               </select>
+            </div>
+
+            <div className="col-span-2">
+              <label className="ta-label">Attach Files <span className="font-normal text-gray-400">(optional, max 5 files, 10MB each)</span></label>
+              <input
+                type="file"
+                multiple
+                onChange={handleFileChange}
+                className="ta-input"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.zip"
+              />
+              
+              {attachments.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  <p className="text-sm font-medium text-gray-600">Selected files ({attachments.length}):</p>
+                  {attachments.map((att, idx) => (
+                    <div key={idx} className="flex items-center justify-between rounded bg-gray-50 p-2">
+                      <div className="flex items-center space-x-2">
+                        <svg className="h-4 w-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M8 16.5a1 1 0 01-1-1V4a1 1 0 011-1h6a1 1 0 011 1v11.5a1 1 0 01-1 1H8zm6-11H9v10h5V5.5z" clipRule="evenodd" />
+                        </svg>
+                        <div className="flex-1 truncate">
+                          <p className="text-sm font-medium text-gray-900 truncate">{att.name}</p>
+                          <p className="text-xs text-gray-400">{att.size}MB</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeAttachment(idx)}
+                        className="text-red-500 hover:text-red-700 text-sm"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
