@@ -4,6 +4,8 @@ import axios from '../services/api';
 export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0 }) => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [expandedTaskId, setExpandedTaskId] = useState(null);
+  const [respondingTaskId, setRespondingTaskId] = useState(null);
 
   useEffect(() => {
     if (selectedDate) {
@@ -36,6 +38,13 @@ export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0
     } catch (error) {
       console.error('Error updating task:', error);
     }
+  };
+
+  const respondToManager = async (taskId, newStatus) => {
+    setRespondingTaskId(taskId);
+    await updateTaskStatus(taskId, newStatus);
+    setRespondingTaskId(null);
+    setExpandedTaskId(null);
   };
 
   const priorityBadge = (p) => {
@@ -92,6 +101,13 @@ export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0
     return [];
   };
 
+  const isPendingManagerTaskForEmployer = (task) => (
+    userRole === 'employer'
+    && task.assigned_to === currentUserId
+    && task.creator?.role === 'manager'
+    && task.status === 'pending'
+  );
+
   return (
     <div className="ta-card">
       <div className="ta-card-header flex items-center justify-between">
@@ -124,6 +140,35 @@ export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0
                       <p className="font-medium text-sidebar">{task.title}</p>
                       {task.description && <p className="mt-0.5 text-xs text-gray-400 line-clamp-1">{task.description}</p>}
                       {task.creator?.name && <p className="mt-1 text-xs text-gray-400">by {task.creator.name}</p>}
+                      {isPendingManagerTaskForEmployer(task) && (
+                        <button
+                          type="button"
+                          onClick={() => setExpandedTaskId((prev) => (prev === task.id ? null : task.id))}
+                          className="mt-2 text-xs font-semibold text-primary hover:underline"
+                        >
+                          {expandedTaskId === task.id ? 'Hide response actions' : 'Click to answer manager'}
+                        </button>
+                      )}
+                      {expandedTaskId === task.id && isPendingManagerTaskForEmployer(task) && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => respondToManager(task.id, 'in_progress')}
+                            disabled={respondingTaskId === task.id}
+                            className="ta-btn-secondary !px-3 !py-1 !text-xs disabled:opacity-60"
+                          >
+                            Start Task
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => respondToManager(task.id, 'pending_review')}
+                            disabled={respondingTaskId === task.id}
+                            className="ta-btn-primary !px-3 !py-1 !text-xs disabled:opacity-60"
+                          >
+                            Send to Manager
+                          </button>
+                        </div>
+                      )}
                     </td>
                     <td className="py-4 pr-4">
                       <span className={priorityBadge(task.priority)}>{task.priority}</span>
