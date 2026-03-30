@@ -23,7 +23,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::get('admin/overview', [AdminController::class, 'overview']);
     Route::get('admin/users', [AdminController::class, 'users']);
+    Route::post('admin/users', [AdminController::class, 'storeUser']);
+    Route::get('admin/users/{user}', [AdminController::class, 'showUser']);
+    Route::put('admin/users/{user}', [AdminController::class, 'updateUser']);
     Route::put('admin/users/{user}/role', [AdminController::class, 'updateUserRole']);
+    Route::delete('admin/users/{user}', [AdminController::class, 'deleteUser']);
 
     // Tasks
     Route::apiResource('tasks', TaskController::class);
