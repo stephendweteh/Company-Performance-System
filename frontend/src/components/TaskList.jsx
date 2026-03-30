@@ -211,7 +211,7 @@ export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0
                           )}
                           {isEmployerTaskWithSubmission(task) && extractSubmissionNotes(task.description) && (
                             <div className="mt-2 rounded bg-blue-50 border border-blue-100 p-2">
-                              <p className="text-xs font-semibold text-blue-900">📋 Employer Response:</p>
+                              <p className="text-xs font-semibold text-blue-900">📋 {task.assignee?.name}:</p>
                               <p className="mt-1 text-xs text-blue-800 line-clamp-3">{extractSubmissionNotes(task.description)}</p>
                               <button
                                 type="button"
@@ -245,7 +245,7 @@ export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0
                         <div className="mt-3 space-y-2 rounded border border-blue-200 bg-blue-50 p-3">
                           {extractSubmissionNotes(task.description) && (
                             <div>
-                              <p className="text-xs font-semibold text-blue-900">Full Employer Response:</p>
+                              <p className="text-xs font-semibold text-blue-900">{task.assignee?.name}'s Full Response:</p>
                               <p className="mt-1.5 whitespace-pre-wrap text-xs text-blue-800">{extractSubmissionNotes(task.description)}</p>
                             </div>
                           )}
