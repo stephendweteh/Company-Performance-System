@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #F1F5F9;
+  color: #1c2434;
+}
+
+/* TailAdmin scrollbar */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* TailAdmin input focus ring */
+input:focus, textarea:focus, select:focus { outline: none; }
+
+/* TailAdmin card */
+.ta-card {
+  @apply rounded-sm border border-stroke bg-white shadow-card;
+}
+.ta-card-header {
+  @apply border-b border-stroke px-6 py-4;
+}
+.ta-card-body {
+  @apply p-6;
+}
+
+/* TailAdmin form input */
+.ta-input {
+  @apply w-full rounded border-[1.5px] border-stroke bg-transparent py-3 px-4 text-sm font-medium text-black outline-none transition focus:border-primary;
+}
+.ta-label {
+  @apply mb-2 block text-sm font-medium text-black;
+}
+.ta-btn-primary {
+  @apply flex items-center justify-center rounded bg-primary px-5 py-2.5 text-sm font-medium text-white hover:bg-opacity-90 transition;
+}
+.ta-btn-secondary {
+  @apply flex items-center justify-center rounded border border-stroke px-5 py-2.5 text-sm font-medium text-black hover:shadow-card transition;
+}
+.ta-badge-success {
+  @apply inline-flex rounded-full bg-opacity-10 bg-success px-3 py-1 text-sm font-medium text-success;
+}
+.ta-badge-danger {
+  @apply inline-flex rounded-full bg-opacity-10 bg-danger px-3 py-1 text-sm font-medium text-danger;
+}
+.ta-badge-warning {
+  @apply inline-flex rounded-full bg-opacity-10 bg-warning px-3 py-1 text-sm font-medium text-warning;
+}
+.ta-badge-primary {
+  @apply inline-flex rounded-full bg-opacity-10 bg-primary px-3 py-1 text-sm font-medium text-primary;
+}

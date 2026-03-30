@@ -1,0 +1,64 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: performance_tracker_db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: performance_tracker
+      MYSQL_USER: tracker_user
+      MYSQL_PASSWORD: tracker_pass
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  laravel:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: performance_tracker_api
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DB_HOST: mysql
+      DB_DATABASE: performance_tracker
+      DB_USERNAME: tracker_user
+      DB_PASSWORD: tracker_pass
+      APP_ENV: local
+      APP_DEBUG: true
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    networks:
+      - app-network
+    command: php artisan serve --host=0.0.0.0
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: performance_tracker_ui
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - app-network
+    environment:
+      VITE_API_URL: http://localhost:8000/api
+
+volumes:
+  mysql_data:
+
+networks:
+  app-network:
+    driver: bridge

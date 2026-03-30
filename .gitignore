@@ -1,0 +1,24 @@
+# ── Dependencies ──────────────────────────────────────────
+node_modules/
+vendor/
+
+# ── Laravel env & secrets ─────────────────────────────────
+backend/.env
+backend/.env.backup
+backend_l8_seed/.env
+
+# ── Build artifacts ───────────────────────────────────────
+frontend/dist/
+backend/public/hot
+backend_l8_seed/public/hot
+
+# ── Laravel generated / cache ─────────────────────────────
+backend/storage/logs/*.log
+backend_l8_seed/storage/logs/*.log
+
+# ── OS files ──────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Docker volumes ────────────────────────────────────────
+mysql_data/

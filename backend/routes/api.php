@@ -1,0 +1,49 @@
+<?php
+
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AdminController;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\TaskController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\WinController;
+use App\Http\Controllers\CompanyController;
+use App\Http\Controllers\TeamController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\UserController;
+
+// Public auth routes
+Route::post('register', [AuthController::class, 'register']);
+Route::post('login',    [AuthController::class, 'login']);
+
+// Protected routes
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::get('user',    [AuthController::class, 'user']);
+    Route::post('logout', [AuthController::class, 'logout']);
+    Route::get('users', [UserController::class, 'index']);
+
+    Route::get('admin/overview', [AdminController::class, 'overview']);
+    Route::get('admin/users', [AdminController::class, 'users']);
+    Route::put('admin/users/{user}/role', [AdminController::class, 'updateUserRole']);
+
+    // Tasks
+    Route::apiResource('tasks', TaskController::class);
+
+    // Reports
+    Route::apiResource('reports', ReportController::class);
+    Route::put('reports/{report}/status', [ReportController::class, 'updateStatus']);
+
+    // Wins
+    Route::apiResource('wins', WinController::class);
+
+    // Companies
+    Route::apiResource('companies', CompanyController::class);
+
+    // Teams
+    Route::apiResource('teams', TeamController::class);
+
+    // Notifications
+    Route::put('notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
+    Route::put('notifications/{notification}/read', [NotificationController::class, 'markAsRead']);
+    Route::apiResource('notifications', NotificationController::class);
+});
+
