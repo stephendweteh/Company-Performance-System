@@ -140,13 +140,13 @@ export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0
                       <p className="font-medium text-sidebar">{task.title}</p>
                       {task.description && <p className="mt-0.5 text-xs text-gray-400 line-clamp-1">{task.description}</p>}
                       {task.creator?.name && <p className="mt-1 text-xs text-gray-400">by {task.creator.name}</p>}
-                      {task.attachments && task.attachments.length > 0 && (
+                      {task.attachments && Array.isArray(task.attachments) && task.attachments.length > 0 && (
                         <div className="mt-2 space-y-1">
                           <p className="text-xs font-semibold text-gray-500">Attachments ({task.attachments.length}):</p>
                           {task.attachments.map((attachment, idx) => (
                             <a
                               key={idx}
-                              href={`${process.env.REACT_APP_API_URL || ''}/storage/${attachment.file_path}`}
+                              href={`/storage/${attachment.file_path}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="block text-xs text-primary hover:underline truncate"
