@@ -24,6 +24,14 @@ function App() {
   const canManageCompanies = ['employer', 'super_admin'].includes(user?.role);
   const isSuperAdmin = user?.role === 'super_admin';
 
+  const handleCalendarDateSelect = (date) => {
+    setSelectedDate(date);
+
+    if (['manager', 'employer'].includes(user?.role)) {
+      setActiveTab('tasks');
+    }
+  };
+
   if (!user) return <LoginPage />;
 
   /* ── date-required prompt ── */
@@ -72,7 +80,7 @@ function App() {
           {activeTab === 'calendar' && (
             <div className="flex flex-col gap-6 xl:flex-row">
               <div className="flex-1 min-w-0">
-                <CalendarDashboard onDateSelect={setSelectedDate} />
+                <CalendarDashboard onDateSelect={handleCalendarDateSelect} />
               </div>
               {selectedDate && (
                 <div className="xl:w-72">
@@ -111,7 +119,13 @@ function App() {
           {/* ── Tasks ── */}
           {activeTab === 'tasks' && (
             <div className="space-y-6">
-              {canAssignTasks && <TaskCreator userRole={user?.role} onTaskCreated={() => setTaskRefreshKey((prev) => prev + 1)} />}
+              {canAssignTasks && (
+                <TaskCreator
+                  userRole={user?.role}
+                  selectedDate={selectedDate}
+                  onTaskCreated={() => setTaskRefreshKey((prev) => prev + 1)}
+                />
+              )}
               {selectedDate
                 ? <TaskList selectedDate={selectedDate} userRole={user?.role} currentUserId={user?.id} refreshKey={taskRefreshKey} />
                 : <DatePrompt label="view and manage tasks" />

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../services/api';
 
-export const TaskCreator = ({ userRole, onTaskCreated }) => {
+export const TaskCreator = ({ userRole, selectedDate, onTaskCreated }) => {
   const [employees, setEmployees] = useState([]);
   const [teams, setTeams] = useState([]);
   const [formData, setFormData] = useState({
@@ -23,6 +23,20 @@ export const TaskCreator = ({ userRole, onTaskCreated }) => {
     fetchEmployees();
     fetchTeams();
   }, [userRole]);
+
+  useEffect(() => {
+    if (!selectedDate || !['manager', 'employer'].includes(userRole)) {
+      return;
+    }
+
+    const dateValue = selectedDate.toISOString().split('T')[0];
+    setShowForm(true);
+    setFormData((prev) => ({
+      ...prev,
+      start_date: dateValue,
+      due_date: dateValue,
+    }));
+  }, [selectedDate, userRole]);
 
   const fetchEmployees = async () => {
     try {
