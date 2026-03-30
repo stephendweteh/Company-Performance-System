@@ -9,6 +9,7 @@ import WinsRecorder from './components/WinsRecorder';
 import Notifications from './components/Notifications';
 import CompanyManagement from './components/CompanyManagement';
 import SuperAdminDashboard from './components/SuperAdminDashboard';
+import ProfileSettings from './components/ProfileSettings';
 import AuthContext from './context/AuthContext';
 import './App.css';
 
@@ -16,8 +17,10 @@ function App() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [activeTab, setActiveTab] = useState('calendar');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user } = useContext(AuthContext);
-  const canManageOrganizations = user?.role === 'employer' || user?.role === 'super_admin';
+  const { user, refreshUser } = useContext(AuthContext);
+  const canAssignTasks = ['employer', 'manager', 'super_admin'].includes(user?.role);
+  const canAccessCompanies = ['employer', 'manager', 'super_admin'].includes(user?.role);
+  const canManageCompanies = ['employer', 'super_admin'].includes(user?.role);
   const isSuperAdmin = user?.role === 'super_admin';
 
   if (!user) return <LoginPage />;
@@ -59,6 +62,7 @@ function App() {
           sidebarOpen={sidebarOpen}
           setSidebarOpen={setSidebarOpen}
           activeTab={activeTab}
+          setActiveTab={setActiveTab}
         />
 
         <main className="mx-auto w-full max-w-screen-2xl px-4 py-6 md:px-6 2xl:px-10">
@@ -102,7 +106,7 @@ function App() {
           {/* ── Tasks ── */}
           {activeTab === 'tasks' && (
             <div className="space-y-6">
-              {canManageOrganizations && <TaskCreator onTaskCreated={() => {}} />}
+              {canAssignTasks && <TaskCreator onTaskCreated={() => {}} />}
               {selectedDate
                 ? <TaskList selectedDate={selectedDate} userRole={user?.role} />
                 : <DatePrompt label="view and manage tasks" />
@@ -125,13 +129,16 @@ function App() {
           )}
 
           {/* ── Companies ── */}
-          {activeTab === 'companies' && <CompanyManagement />}
+          {activeTab === 'companies' && canAccessCompanies && <CompanyManagement canManage={canManageCompanies} />}
 
           {/* ── Admin ── */}
           {activeTab === 'admin' && isSuperAdmin && <SuperAdminDashboard />}
 
           {/* ── Notifications ── */}
           {activeTab === 'notifications' && <Notifications />}
+
+          {/* ── Profile ── */}
+          {activeTab === 'profile' && <ProfileSettings user={user} onProfileUpdated={refreshUser} />}
 
         </main>
       </div>

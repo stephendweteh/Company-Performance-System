@@ -14,10 +14,17 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'phone',
+        'bio',
+        'profile_photo_path',
         'password',
         'role',
         'company_id',
         'team_id',
+    ];
+
+    protected $appends = [
+        'profile_photo_url',
     ];
 
     protected $hidden = [
@@ -58,5 +65,10 @@ class User extends Authenticatable
     public function notifications()
     {
         return $this->hasMany(Notification::class, 'user_id');
+    }
+
+    public function getProfilePhotoUrlAttribute()
+    {
+        return $this->profile_photo_path ? '/storage/'.$this->profile_photo_path : null;
     }
 }

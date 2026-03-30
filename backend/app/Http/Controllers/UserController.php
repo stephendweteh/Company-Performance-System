@@ -11,7 +11,7 @@ class UserController extends Controller
     {
         $currentUser = $request->user();
 
-        abort_unless($currentUser && in_array($currentUser->role, ['employer', 'super_admin']), 403, 'Forbidden');
+        abort_unless($currentUser && in_array($currentUser->role, ['employer', 'manager', 'super_admin']), 403, 'Forbidden');
 
         $query = User::with('company', 'team')->orderBy('name');
 
@@ -21,7 +21,7 @@ class UserController extends Controller
             }
 
             $query->where('role', $request->role);
-        } elseif ($currentUser->role === 'employer') {
+        } elseif (in_array($currentUser->role, ['employer', 'manager'])) {
             $query->where('role', 'employee');
         }
 

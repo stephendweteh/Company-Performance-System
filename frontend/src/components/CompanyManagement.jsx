@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../services/api';
 
-export const CompanyManagement = () => {
+export const CompanyManagement = ({ canManage = true }) => {
   const [companies, setCompanies] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [companyName, setCompanyName] = useState('');
@@ -56,13 +56,15 @@ export const CompanyManagement = () => {
   return (
     <div className="ta-card">
       <div className="ta-card-header flex items-center justify-between">
-        <h2 className="font-semibold text-sidebar">Company Management</h2>
-        <button onClick={() => setShowForm(!showForm)} className={showForm ? 'ta-btn-secondary' : 'ta-btn-primary'}>
-          {showForm ? 'Cancel' : '+ New Company'}
-        </button>
+        <h2 className="font-semibold text-sidebar">Company and Team Directory</h2>
+        {canManage && (
+          <button onClick={() => setShowForm(!showForm)} className={showForm ? 'ta-btn-secondary' : 'ta-btn-primary'}>
+            {showForm ? 'Cancel' : '+ New Company'}
+          </button>
+        )}
       </div>
       <div className="ta-card-body">
-        {showForm && (
+        {canManage && showForm && (
           <form onSubmit={handleCreateCompany} className="mb-6 rounded-sm border border-stroke bg-whiten p-5">
             <label className="ta-label">Company Name</label>
             <div className="flex gap-3">
@@ -84,21 +86,28 @@ export const CompanyManagement = () => {
                   <th className="pb-3 text-left font-semibold text-gray-500">Company</th>
                   <th className="pb-3 text-left font-semibold text-gray-500">Teams</th>
                   <th className="pb-3 text-left font-semibold text-gray-500">Employees</th>
-                  <th className="pb-3" />
+                  {canManage && <th className="pb-3" />}
                 </tr>
               </thead>
               <tbody className="divide-y divide-stroke">
                 {companies.map((c) => (
                   <tr key={c.id} className="hover:bg-whiten transition-colors">
                     <td className="py-4 pr-4 font-medium text-sidebar">{c.company_name}</td>
-                    <td className="py-4 pr-4 text-gray-500">{c.teams?.length || 0}</td>
-                    <td className="py-4 pr-4 text-gray-500">{c.employees?.length || 0}</td>
-                    <td className="py-4 text-right">
-                      <button onClick={() => handleDeleteCompany(c.id)}
-                        className="rounded px-3 py-1 text-xs font-semibold text-danger hover:bg-danger/10 transition-colors">
-                        Delete
-                      </button>
+                    <td className="py-4 pr-4 text-gray-500">
+                      {c.teams?.length || 0}
+                      {c.teams?.length > 0 && (
+                        <p className="mt-1 text-xs text-gray-400">{c.teams.map((t) => t.team_name).join(', ')}</p>
+                      )}
                     </td>
+                    <td className="py-4 pr-4 text-gray-500">{c.employees?.length || 0}</td>
+                    {canManage && (
+                      <td className="py-4 text-right">
+                        <button onClick={() => handleDeleteCompany(c.id)}
+                          className="rounded px-3 py-1 text-xs font-semibold text-danger hover:bg-danger/10 transition-colors">
+                          Delete
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

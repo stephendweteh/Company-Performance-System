@@ -18,10 +18,15 @@ Route::post('login',    [AuthController::class, 'login']);
 // Protected routes
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('user',    [AuthController::class, 'user']);
+    Route::match(['put', 'post'], 'user/profile', [AuthController::class, 'updateProfile']);
     Route::post('logout', [AuthController::class, 'logout']);
     Route::get('users', [UserController::class, 'index']);
 
     Route::get('admin/overview', [AdminController::class, 'overview']);
+    Route::get('admin/notification-channels', [AdminController::class, 'notificationChannels']);
+    Route::put('admin/notification-channels', [AdminController::class, 'updateNotificationChannels']);
+    Route::post('admin/notification-channels/test-smtp', [AdminController::class, 'testSmtpConnection']);
+    Route::post('admin/notification-channels/test-arkesel', [AdminController::class, 'testArkeselConnection']);
     Route::get('admin/users', [AdminController::class, 'users']);
     Route::post('admin/users', [AdminController::class, 'storeUser']);
     Route::get('admin/users/{user}', [AdminController::class, 'showUser']);

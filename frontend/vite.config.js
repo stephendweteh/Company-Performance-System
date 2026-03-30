@@ -11,6 +11,10 @@ export default defineConfig({
         target: 'http://laravel:8000',
         changeOrigin: true,
       },
+      '/storage': {
+        target: 'http://laravel:8000',
+        changeOrigin: true,
+      },
     },
   },
 })

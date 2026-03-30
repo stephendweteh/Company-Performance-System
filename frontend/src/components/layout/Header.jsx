@@ -8,10 +8,11 @@ const tabLabels = {
   wins:          'Achievements',
   companies:     'Companies',
   notifications: 'Notifications',
+  profile:       'Profile',
   admin:         'Admin Panel',
 };
 
-const Header = ({ sidebarOpen, setSidebarOpen, activeTab }) => {
+const Header = ({ sidebarOpen, setSidebarOpen, activeTab, setActiveTab }) => {
   const { user, logout } = useContext(AuthContext);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
@@ -53,8 +54,12 @@ const Header = ({ sidebarOpen, setSidebarOpen, activeTab }) => {
             className="flex items-center gap-2 rounded-full border border-stroke py-1.5 px-3 hover:bg-gray-2 transition"
           >
             {/* Avatar */}
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-white text-sm font-bold">
-              {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+            <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-primary text-white text-sm font-bold">
+              {user?.profile_photo_url ? (
+                <img src={user.profile_photo_url} alt="Avatar" className="h-full w-full object-cover" />
+              ) : (
+                user?.name?.charAt(0)?.toUpperCase() || 'U'
+              )}
             </div>
             <div className="hidden md:block text-left">
               <p className="text-sm font-semibold text-sidebar leading-none">{user?.name}</p>
@@ -75,6 +80,15 @@ const Header = ({ sidebarOpen, setSidebarOpen, activeTab }) => {
                   <p className="text-xs text-gray-500 mt-0.5">{user?.email}</p>
                 </div>
                 <div className="py-1">
+                  <button
+                    onClick={() => { setUserMenuOpen(false); setActiveTab('profile'); }}
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-sidebar hover:bg-gray-2 transition"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5.121 17.804A9 9 0 1118.878 17.8M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    Profile
+                  </button>
                   <button
                     onClick={() => { setUserMenuOpen(false); logout(); }}
                     className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-danger hover:bg-gray-2 transition"

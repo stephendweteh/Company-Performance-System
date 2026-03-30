@@ -39,6 +39,21 @@ export const AuthProvider = ({ children }) => {
     return response.data;
   };
 
+  const refreshUser = async () => {
+    if (!token) {
+      return;
+    }
+
+    try {
+      const response = await axios.get('/api/user', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setUser(response.data);
+    } catch (error) {
+      // keep existing user state if refresh fails
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     setToken(null);
@@ -46,7 +61,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -54,6 +54,11 @@ const icons = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
     </Icon>
   ),
+  profile: (
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5.121 17.804A9 9 0 1118.878 17.8M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+    </Icon>
+  ),
   close: (
     <Icon className="h-4 w-4">
       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -62,12 +67,12 @@ const icons = {
 };
 
 const navLinks = [
-  { label: 'Dashboard',     tab: 'calendar',      roles: ['employee', 'employer', 'super_admin'], icon: icons.calendar },
-  { label: 'Tasks',         tab: 'tasks',         roles: ['employee', 'employer', 'super_admin'], icon: icons.tasks },
-  { label: 'Reports',       tab: 'reports',       roles: ['employee', 'employer', 'super_admin'], icon: icons.reports },
-  { label: 'Achievements',  tab: 'wins',          roles: ['employee', 'employer', 'super_admin'], icon: icons.wins },
-  { label: 'Companies',     tab: 'companies',     roles: ['employer', 'super_admin'],             icon: icons.companies },
-  { label: 'Notifications', tab: 'notifications', roles: ['employee', 'employer', 'super_admin'], icon: icons.notifications },
+  { label: 'Dashboard',     tab: 'calendar',      roles: ['employee', 'employer', 'manager', 'super_admin'], icon: icons.calendar },
+  { label: 'Tasks',         tab: 'tasks',         roles: ['employee', 'employer', 'manager', 'super_admin'], icon: icons.tasks },
+  { label: 'Reports',       tab: 'reports',       roles: ['employee', 'employer', 'manager', 'super_admin'], icon: icons.reports },
+  { label: 'Achievements',  tab: 'wins',          roles: ['employee', 'employer', 'manager', 'super_admin'], icon: icons.wins },
+  { label: 'Companies',     tab: 'companies',     roles: ['employer', 'manager', 'super_admin'],             icon: icons.companies },
+  { label: 'Notifications', tab: 'notifications', roles: ['employee', 'employer', 'manager', 'super_admin'], icon: icons.notifications },
   { label: 'Admin Panel',   tab: 'admin',         roles: ['super_admin'],                         icon: icons.admin },
 ];
 
@@ -75,6 +80,7 @@ const navLinks = [
 const rolePill = {
   super_admin: 'bg-primary/20 text-primary',
   employer:    'bg-success/20 text-success',
+  manager:     'bg-warning/20 text-warning',
   employee:    'bg-warning/20 text-warning',
 };
 
@@ -121,8 +127,19 @@ const Sidebar = ({ activeTab, setActiveTab, sidebarOpen, setSidebarOpen }) => {
         <div className="no-scrollbar flex flex-1 flex-col overflow-y-auto py-5 px-4">
           {/* User card */}
           <div className="mb-6 rounded-lg bg-sidebar-hover px-4 py-3">
-            <p className="text-xs text-bodydark uppercase tracking-wider">Signed in as</p>
-            <p className="mt-1 text-sm font-semibold text-white">{user?.name}</p>
+            <div className="mb-3 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-primary text-sm font-bold text-white">
+                {user?.profile_photo_url ? (
+                  <img src={user.profile_photo_url} alt="Profile" className="h-full w-full object-cover" />
+                ) : (
+                  user?.name?.charAt(0)?.toUpperCase() || 'U'
+                )}
+              </div>
+              <div>
+                <p className="text-xs text-bodydark uppercase tracking-wider">Signed in as</p>
+                <p className="text-sm font-semibold text-white">{user?.name}</p>
+              </div>
+            </div>
             <span className={`mt-1.5 inline-block rounded px-2 py-0.5 text-xs font-medium capitalize ${rolePill[user?.role] || 'bg-gray-500/20 text-gray-300'}`}>
               {user?.role?.replace('_', ' ')}
             </span>

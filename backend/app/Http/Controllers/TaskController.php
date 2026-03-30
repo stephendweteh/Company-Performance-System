@@ -7,6 +7,11 @@ use Illuminate\Http\Request;
 
 class TaskController extends Controller
 {
+    protected function canAssign($user)
+    {
+        return $user && in_array($user->role, ['employer', 'manager', 'super_admin']);
+    }
+
     public function index(Request $request)
     {
         $query = Task::query();
@@ -34,6 +39,8 @@ class TaskController extends Controller
 
     public function store(Request $request)
     {
+        abort_unless($this->canAssign($request->user()), 403, 'Forbidden');
+
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'required|string',
@@ -60,21 +67,35 @@ class TaskController extends Controller
 
     public function update(Request $request, Task $task)
     {
-        $validated = $request->validate([
-            'title' => 'string|max:255',
-            'description' => 'string',
-            'status' => 'in:pending,in_progress,completed',
-            'priority' => 'in:low,medium,high,critical',
-            'assigned_to' => 'exists:users,id',
-        ]);
+        $user = $request->user();
+
+        if ($user && $user->role === 'employee') {
+            abort_unless($task->assigned_to === $user->id, 403, 'Forbidden');
+
+            $validated = $request->validate([
+                'status' => 'required|in:pending,in_progress,completed',
+            ]);
+        } else {
+            abort_unless($this->canAssign($user), 403, 'Forbidden');
+
+            $validated = $request->validate([
+                'title' => 'string|max:255',
+                'description' => 'string',
+                'status' => 'in:pending,in_progress,completed',
+                'priority' => 'in:low,medium,high,critical',
+                'assigned_to' => 'exists:users,id',
+            ]);
+        }
 
         $task->update($validated);
 
         return response()->json($task);
     }
 
-    public function destroy(Task $task)
+    public function destroy(Request $request, Task $task)
     {
+        abort_unless($this->canAssign($request->user()), 403, 'Forbidden');
+
         $task->delete();
         return response()->json(['message' => 'Task deleted']);
     }

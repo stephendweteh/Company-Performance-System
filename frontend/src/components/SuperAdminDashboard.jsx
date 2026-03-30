@@ -10,6 +10,21 @@ const emptyForm = {
   team_id: '',
 };
 
+const emptyChannelSettings = {
+  smtp_host: '',
+  smtp_port: '',
+  smtp_encryption: '',
+  smtp_username: '',
+  smtp_password: '',
+  smtp_from_email: '',
+  smtp_from_name: '',
+  has_smtp_password: false,
+  arkesel_api_key: '',
+  arkesel_sender_id: '',
+  arkesel_api_url: 'https://sms.arkesel.com/sms/api',
+  has_arkesel_api_key: false,
+};
+
 export const SuperAdminDashboard = () => {
   const [overview, setOverview] = useState(null);
   const [users, setUsers] = useState([]);
@@ -23,6 +38,15 @@ export const SuperAdminDashboard = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
   const [formData, setFormData] = useState(emptyForm);
+  const [channelSettings, setChannelSettings] = useState(emptyChannelSettings);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [smtpTesting, setSmtpTesting] = useState(false);
+  const [smsTesting, setSmsTesting] = useState(false);
+  const [smtpTestEmail, setSmtpTestEmail] = useState('');
+  const [smsTestPhone, setSmsTestPhone] = useState('');
+  const [smsTestMessage, setSmsTestMessage] = useState('PerformTrack SMS test message from Admin settings.');
+  const [clearSmtpPassword, setClearSmtpPassword] = useState(false);
+  const [clearArkeselApiKey, setClearArkeselApiKey] = useState(false);
 
   const authConfig = {
     headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
@@ -43,6 +67,27 @@ export const SuperAdminDashboard = () => {
 
     setCompanies(companiesResponse.data || []);
     setTeams(teamsResponse.data || []);
+  };
+
+  const fetchNotificationChannels = async () => {
+    const response = await axios.get('/api/admin/notification-channels', authConfig);
+    const data = response.data || {};
+
+    setChannelSettings((prev) => ({
+      ...prev,
+      smtp_host: data.smtp_host || '',
+      smtp_port: data.smtp_port ? String(data.smtp_port) : '',
+      smtp_encryption: data.smtp_encryption || '',
+      smtp_username: data.smtp_username || '',
+      smtp_from_email: data.smtp_from_email || '',
+      smtp_from_name: data.smtp_from_name || '',
+      has_smtp_password: !!data.has_smtp_password,
+      arkesel_sender_id: data.arkesel_sender_id || '',
+      arkesel_api_url: data.arkesel_api_url || 'https://sms.arkesel.com/sms/api',
+      has_arkesel_api_key: !!data.has_arkesel_api_key,
+      smtp_password: '',
+      arkesel_api_key: '',
+    }));
   };
 
   const fetchUsers = async () => {
@@ -67,7 +112,12 @@ export const SuperAdminDashboard = () => {
   const loadDashboard = async () => {
     setLoading(true);
     try {
-      await Promise.all([fetchOverview(), fetchUsers(), fetchCompaniesAndTeams()]);
+      await Promise.all([
+        fetchOverview(),
+        fetchUsers(),
+        fetchCompaniesAndTeams(),
+        fetchNotificationChannels(),
+      ]);
     } catch (error) {
       setMessage(error.response?.data?.message || 'Failed to load admin dashboard.');
     } finally {
@@ -193,6 +243,76 @@ export const SuperAdminDashboard = () => {
     }
   };
 
+  const handleChannelChange = (event) => {
+    const { name, value } = event.target;
+    setChannelSettings((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSaveChannels = async (event) => {
+    event.preventDefault();
+    setSettingsSaving(true);
+
+    try {
+      await axios.put('/api/admin/notification-channels', {
+        smtp_host: channelSettings.smtp_host || null,
+        smtp_port: channelSettings.smtp_port ? Number(channelSettings.smtp_port) : null,
+        smtp_encryption: channelSettings.smtp_encryption || null,
+        smtp_username: channelSettings.smtp_username || null,
+        smtp_password: channelSettings.smtp_password || null,
+        smtp_from_email: channelSettings.smtp_from_email || null,
+        smtp_from_name: channelSettings.smtp_from_name || null,
+        clear_smtp_password: clearSmtpPassword,
+        arkesel_api_key: channelSettings.arkesel_api_key || null,
+        arkesel_sender_id: channelSettings.arkesel_sender_id || null,
+        arkesel_api_url: channelSettings.arkesel_api_url || null,
+        clear_arkesel_api_key: clearArkeselApiKey,
+      }, authConfig);
+
+      setMessage('Notification channel settings saved successfully.');
+      setClearSmtpPassword(false);
+      setClearArkeselApiKey(false);
+      await fetchNotificationChannels();
+    } catch (error) {
+      const validationMessage = error.response?.data?.errors
+        ? Object.values(error.response.data.errors).flat().join(' ')
+        : null;
+      setMessage(validationMessage || error.response?.data?.message || 'Failed to save notification settings.');
+    }
+
+    setSettingsSaving(false);
+  };
+
+  const handleTestSmtp = async () => {
+    setSmtpTesting(true);
+
+    try {
+      const response = await axios.post('/api/admin/notification-channels/test-smtp', {
+        test_email: smtpTestEmail,
+      }, authConfig);
+      setMessage(response.data?.message || 'SMTP test succeeded.');
+    } catch (error) {
+      setMessage(error.response?.data?.message || 'SMTP test failed.');
+    }
+
+    setSmtpTesting(false);
+  };
+
+  const handleTestSms = async () => {
+    setSmsTesting(true);
+
+    try {
+      const response = await axios.post('/api/admin/notification-channels/test-arkesel', {
+        test_phone: smsTestPhone,
+        test_message: smsTestMessage,
+      }, authConfig);
+      setMessage(response.data?.message || 'Arkesel SMS test succeeded.');
+    } catch (error) {
+      setMessage(error.response?.data?.message || 'Arkesel SMS test failed.');
+    }
+
+    setSmsTesting(false);
+  };
+
   if (loading) {
     return (
       <div className="ta-card">
@@ -207,6 +327,7 @@ export const SuperAdminDashboard = () => {
     { label: 'Total Users', value: overview?.users ?? '-', color: 'text-primary' },
     { label: 'Super Admins', value: overview?.super_admins ?? '-', color: 'text-danger' },
     { label: 'Employers', value: overview?.employers ?? '-', color: 'text-warning' },
+    { label: 'Managers', value: overview?.managers ?? '-', color: 'text-warning' },
     { label: 'Employees', value: overview?.employees ?? '-', color: 'text-success' },
     { label: 'Companies', value: overview?.companies ?? '-', color: 'text-primary' },
     { label: 'Teams', value: overview?.teams ?? '-', color: 'text-primary' },
@@ -218,6 +339,7 @@ export const SuperAdminDashboard = () => {
     ({
       super_admin: 'ta-badge-danger',
       employer: 'ta-badge-warning',
+      manager: 'ta-badge-warning',
       employee: 'ta-badge-primary',
     }[role] || 'ta-badge-primary');
 
@@ -276,6 +398,7 @@ export const SuperAdminDashboard = () => {
                 <select name="role" value={formData.role} onChange={handleFormChange} className="ta-input">
                   <option value="super_admin">Super Admin</option>
                   <option value="employer">Employer</option>
+                  <option value="manager">Manager</option>
                   <option value="employee">Employee</option>
                 </select>
               </div>
@@ -309,6 +432,100 @@ export const SuperAdminDashboard = () => {
 
       <div className="ta-card">
         <div className="ta-card-header">
+          <h3 className="font-semibold text-sidebar">Email and SMS Gateway Connections</h3>
+        </div>
+        <div className="ta-card-body">
+          <form onSubmit={handleSaveChannels} className="space-y-6">
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+              <div className="rounded-sm border border-stroke p-4">
+                <h4 className="text-sm font-semibold text-sidebar">SMTP Configuration</h4>
+                <p className="mb-4 mt-1 text-xs text-gray-400">Configure outgoing email delivery.</p>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div>
+                    <label className="ta-label">Host</label>
+                    <input name="smtp_host" value={channelSettings.smtp_host} onChange={handleChannelChange} className="ta-input" />
+                  </div>
+                  <div>
+                    <label className="ta-label">Port</label>
+                    <input type="number" name="smtp_port" value={channelSettings.smtp_port} onChange={handleChannelChange} className="ta-input" />
+                  </div>
+                  <div>
+                    <label className="ta-label">Encryption</label>
+                    <select name="smtp_encryption" value={channelSettings.smtp_encryption} onChange={handleChannelChange} className="ta-input">
+                      <option value="">None</option>
+                      <option value="tls">TLS</option>
+                      <option value="ssl">SSL</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="ta-label">Username</label>
+                    <input name="smtp_username" value={channelSettings.smtp_username} onChange={handleChannelChange} className="ta-input" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="ta-label">Password</label>
+                    <input type="password" name="smtp_password" value={channelSettings.smtp_password} onChange={handleChannelChange} className="ta-input" placeholder={channelSettings.has_smtp_password ? 'Saved password exists. Enter to replace.' : ''} />
+                    <label className="mt-2 flex items-center gap-2 text-xs text-gray-500">
+                      <input type="checkbox" checked={clearSmtpPassword} onChange={(e) => setClearSmtpPassword(e.target.checked)} />
+                      Clear saved SMTP password
+                    </label>
+                  </div>
+                  <div>
+                    <label className="ta-label">From Email</label>
+                    <input type="email" name="smtp_from_email" value={channelSettings.smtp_from_email} onChange={handleChannelChange} className="ta-input" />
+                  </div>
+                  <div>
+                    <label className="ta-label">From Name</label>
+                    <input name="smtp_from_name" value={channelSettings.smtp_from_name} onChange={handleChannelChange} className="ta-input" />
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-col gap-2 md:flex-row">
+                  <input type="email" value={smtpTestEmail} onChange={(e) => setSmtpTestEmail(e.target.value)} placeholder="test@example.com" className="ta-input flex-1" required />
+                  <button type="button" onClick={handleTestSmtp} disabled={smtpTesting || !smtpTestEmail} className="ta-btn-secondary whitespace-nowrap disabled:opacity-60">
+                    {smtpTesting ? 'Testing...' : 'Send SMTP Test'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-sm border border-stroke p-4">
+                <h4 className="text-sm font-semibold text-sidebar">Arkesel SMS Configuration</h4>
+                <p className="mb-4 mt-1 text-xs text-gray-400">Configure SMS delivery through Arkesel API.</p>
+                <div className="grid grid-cols-1 gap-3">
+                  <div>
+                    <label className="ta-label">API URL</label>
+                    <input name="arkesel_api_url" value={channelSettings.arkesel_api_url} onChange={handleChannelChange} className="ta-input" />
+                  </div>
+                  <div>
+                    <label className="ta-label">Sender ID</label>
+                    <input name="arkesel_sender_id" value={channelSettings.arkesel_sender_id} onChange={handleChannelChange} className="ta-input" />
+                  </div>
+                  <div>
+                    <label className="ta-label">API Key</label>
+                    <input type="password" name="arkesel_api_key" value={channelSettings.arkesel_api_key} onChange={handleChannelChange} className="ta-input" placeholder={channelSettings.has_arkesel_api_key ? 'Saved key exists. Enter to replace.' : ''} />
+                    <label className="mt-2 flex items-center gap-2 text-xs text-gray-500">
+                      <input type="checkbox" checked={clearArkeselApiKey} onChange={(e) => setClearArkeselApiKey(e.target.checked)} />
+                      Clear saved Arkesel API key
+                    </label>
+                  </div>
+                </div>
+                <div className="mt-4 space-y-2">
+                  <input value={smsTestPhone} onChange={(e) => setSmsTestPhone(e.target.value)} placeholder="Recipient phone number" className="ta-input" required />
+                  <textarea value={smsTestMessage} onChange={(e) => setSmsTestMessage(e.target.value)} className="ta-input resize-none" rows={2} />
+                  <button type="button" onClick={handleTestSms} disabled={smsTesting || !smsTestPhone} className="ta-btn-secondary disabled:opacity-60">
+                    {smsTesting ? 'Testing...' : 'Send SMS Test'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" disabled={settingsSaving} className="ta-btn-primary disabled:opacity-60">
+              {settingsSaving ? 'Saving...' : 'Save Gateway Settings'}
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <div className="ta-card">
+        <div className="ta-card-header">
           <h3 className="font-semibold text-sidebar">User Management</h3>
         </div>
         <div className="ta-card-body">
@@ -329,6 +546,7 @@ export const SuperAdminDashboard = () => {
                 <option value="all">All roles</option>
                 <option value="super_admin">Super Admin</option>
                 <option value="employer">Employer</option>
+                <option value="manager">Manager</option>
                 <option value="employee">Employee</option>
               </select>
             </div>
@@ -365,6 +583,7 @@ export const SuperAdminDashboard = () => {
                       >
                         <option value="super_admin">Super Admin</option>
                         <option value="employer">Employer</option>
+                        <option value="manager">Manager</option>
                         <option value="employee">Employee</option>
                       </select>
                     </td>

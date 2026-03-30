@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Company;
+use App\Models\NotificationChannelSetting;
 use App\Models\Notification;
 use App\Models\Report;
 use App\Models\Task;
@@ -10,7 +11,9 @@ use App\Models\Team;
 use App\Models\User;
 use App\Models\Win;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
 
 class AdminController extends Controller
@@ -29,6 +32,7 @@ class AdminController extends Controller
                 'users' => User::count(),
                 'super_admins' => User::where('role', 'super_admin')->count(),
                 'employers' => User::where('role', 'employer')->count(),
+                'managers' => User::where('role', 'manager')->count(),
                 'employees' => User::where('role', 'employee')->count(),
                 'companies' => Company::count(),
                 'teams' => Team::count(),
@@ -38,6 +42,171 @@ class AdminController extends Controller
                 'notifications' => Notification::count(),
             ],
         ]);
+    }
+
+    protected function channelSettings()
+    {
+        return NotificationChannelSetting::firstOrCreate([], [
+            'arkesel_api_url' => 'https://sms.arkesel.com/sms/api',
+        ]);
+    }
+
+    public function notificationChannels(Request $request)
+    {
+        $this->ensureSuperAdmin($request);
+
+        $settings = $this->channelSettings();
+
+        return response()->json([
+            'smtp_host' => $settings->smtp_host,
+            'smtp_port' => $settings->smtp_port,
+            'smtp_encryption' => $settings->smtp_encryption,
+            'smtp_username' => $settings->smtp_username,
+            'smtp_from_email' => $settings->smtp_from_email,
+            'smtp_from_name' => $settings->smtp_from_name,
+            'has_smtp_password' => !empty($settings->smtp_password),
+            'arkesel_sender_id' => $settings->arkesel_sender_id,
+            'arkesel_api_url' => $settings->arkesel_api_url,
+            'has_arkesel_api_key' => !empty($settings->arkesel_api_key),
+        ]);
+    }
+
+    public function updateNotificationChannels(Request $request)
+    {
+        $this->ensureSuperAdmin($request);
+
+        $validated = $request->validate([
+            'smtp_host' => 'nullable|string|max:255',
+            'smtp_port' => 'nullable|integer|min:1|max:65535',
+            'smtp_encryption' => 'nullable|in:tls,ssl',
+            'smtp_username' => 'nullable|string|max:255',
+            'smtp_password' => 'nullable|string|max:255',
+            'smtp_from_email' => 'nullable|email|max:255',
+            'smtp_from_name' => 'nullable|string|max:255',
+            'clear_smtp_password' => 'sometimes|boolean',
+            'arkesel_api_key' => 'nullable|string|max:255',
+            'arkesel_sender_id' => 'nullable|string|max:30',
+            'arkesel_api_url' => 'nullable|url|max:255',
+            'clear_arkesel_api_key' => 'sometimes|boolean',
+        ]);
+
+        $settings = $this->channelSettings();
+
+        $settings->smtp_host = $validated['smtp_host'] ?? $settings->smtp_host;
+        $settings->smtp_port = $validated['smtp_port'] ?? $settings->smtp_port;
+        $settings->smtp_encryption = $validated['smtp_encryption'] ?? $settings->smtp_encryption;
+        $settings->smtp_username = $validated['smtp_username'] ?? $settings->smtp_username;
+        $settings->smtp_from_email = $validated['smtp_from_email'] ?? $settings->smtp_from_email;
+        $settings->smtp_from_name = $validated['smtp_from_name'] ?? $settings->smtp_from_name;
+
+        if (!empty($validated['smtp_password'])) {
+            $settings->smtp_password = $validated['smtp_password'];
+        } elseif (!empty($validated['clear_smtp_password'])) {
+            $settings->smtp_password = null;
+        }
+
+        $settings->arkesel_sender_id = $validated['arkesel_sender_id'] ?? $settings->arkesel_sender_id;
+        $settings->arkesel_api_url = $validated['arkesel_api_url'] ?? $settings->arkesel_api_url;
+
+        if (!empty($validated['arkesel_api_key'])) {
+            $settings->arkesel_api_key = $validated['arkesel_api_key'];
+        } elseif (!empty($validated['clear_arkesel_api_key'])) {
+            $settings->arkesel_api_key = null;
+        }
+
+        $settings->updated_by = $request->user()->id;
+        $settings->save();
+
+        return response()->json(['message' => 'Notification channel settings saved.']);
+    }
+
+    public function testSmtpConnection(Request $request)
+    {
+        $this->ensureSuperAdmin($request);
+
+        $validated = $request->validate([
+            'test_email' => 'required|email|max:255',
+        ]);
+
+        $settings = $this->channelSettings();
+
+        if (empty($settings->smtp_host) || empty($settings->smtp_port) || empty($settings->smtp_from_email)) {
+            return response()->json(['message' => 'Please configure SMTP host, port, and from email first.'], 422);
+        }
+
+        config([
+            'mail.default' => 'smtp',
+            'mail.mailers.smtp.host' => $settings->smtp_host,
+            'mail.mailers.smtp.port' => $settings->smtp_port,
+            'mail.mailers.smtp.encryption' => $settings->smtp_encryption ?: null,
+            'mail.mailers.smtp.username' => $settings->smtp_username,
+            'mail.mailers.smtp.password' => $settings->smtp_password,
+            'mail.from.address' => $settings->smtp_from_email,
+            'mail.from.name' => $settings->smtp_from_name ?: config('app.name'),
+        ]);
+
+        try {
+            Mail::raw('SMTP connection test from PerformTrack admin settings.', function ($message) use ($validated) {
+                $message->to($validated['test_email'])
+                    ->subject('PerformTrack SMTP Test');
+            });
+
+            return response()->json(['message' => 'SMTP test email sent successfully.']);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'SMTP test failed: '.$e->getMessage()], 422);
+        }
+    }
+
+    public function testArkeselConnection(Request $request)
+    {
+        $this->ensureSuperAdmin($request);
+
+        $validated = $request->validate([
+            'test_phone' => 'required|string|max:30',
+            'test_message' => 'nullable|string|max:480',
+        ]);
+
+        $settings = $this->channelSettings();
+
+        if (empty($settings->arkesel_api_key) || empty($settings->arkesel_sender_id) || empty($settings->arkesel_api_url)) {
+            return response()->json(['message' => 'Please configure Arkesel API key, sender ID, and API URL first.'], 422);
+        }
+
+        $message = $validated['test_message'] ?? 'PerformTrack SMS test message from Admin settings.';
+        $url = $settings->arkesel_api_url;
+
+        try {
+            if (str_contains($url, '/sms/api')) {
+                $response = Http::timeout(20)->get($url, [
+                    'action' => 'send-sms',
+                    'api_key' => $settings->arkesel_api_key,
+                    'to' => $validated['test_phone'],
+                    'from' => $settings->arkesel_sender_id,
+                    'sms' => $message,
+                ]);
+            } else {
+                $response = Http::timeout(20)->post($url, [
+                    'api_key' => $settings->arkesel_api_key,
+                    'sender' => $settings->arkesel_sender_id,
+                    'to' => $validated['test_phone'],
+                    'message' => $message,
+                ]);
+            }
+
+            if (!$response->successful()) {
+                return response()->json([
+                    'message' => 'Arkesel test failed with HTTP '.$response->status(),
+                    'response' => $response->body(),
+                ], 422);
+            }
+
+            return response()->json([
+                'message' => 'Arkesel test request sent successfully.',
+                'response' => $response->json() ?? $response->body(),
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Arkesel test failed: '.$e->getMessage()], 422);
+        }
     }
 
     public function users(Request $request)
@@ -76,7 +245,7 @@ class AdminController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:users,email',
             'password' => 'required|string|min:8',
-            'role' => 'required|in:super_admin,employer,employee',
+            'role' => 'required|in:super_admin,employer,manager,employee',
             'company_id' => 'nullable|exists:companies,id',
             'team_id' => 'nullable|exists:teams,id',
         ]);
@@ -107,7 +276,7 @@ class AdminController extends Controller
                 Rule::unique('users', 'email')->ignore($user->id),
             ],
             'password' => 'nullable|string|min:8',
-            'role' => 'sometimes|required|in:super_admin,employer,employee',
+            'role' => 'sometimes|required|in:super_admin,employer,manager,employee',
             'company_id' => 'nullable|exists:companies,id',
             'team_id' => 'nullable|exists:teams,id',
         ]);
@@ -149,7 +318,7 @@ class AdminController extends Controller
         }
 
         $validated = $request->validate([
-            'role' => 'required|in:super_admin,employer,employee',
+            'role' => 'required|in:super_admin,employer,manager,employee',
         ]);
 
         $user->update(['role' => $validated['role']]);
