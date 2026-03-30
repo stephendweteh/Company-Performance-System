@@ -344,6 +344,9 @@ export const SuperAdminDashboard = () => {
     { label: 'Employers', value: overview?.employers ?? '-', color: 'text-warning' },
     { label: 'Managers', value: overview?.managers ?? '-', color: 'text-warning' },
     { label: 'Employees', value: overview?.employees ?? '-', color: 'text-success' },
+    { label: 'Pending Memberships', value: overview?.memberships_pending ?? '-', color: 'text-warning' },
+    { label: 'Accepted Memberships', value: overview?.memberships_accepted ?? '-', color: 'text-success' },
+    { label: 'Rejected Memberships', value: overview?.memberships_rejected ?? '-', color: 'text-danger' },
     { label: 'Companies', value: overview?.companies ?? '-', color: 'text-primary' },
     { label: 'Teams', value: overview?.teams ?? '-', color: 'text-primary' },
     { label: 'Tasks', value: overview?.tasks ?? '-', color: 'text-warning' },
@@ -398,6 +401,7 @@ export const SuperAdminDashboard = () => {
       <PendingMembershipRequests
         title="Pending Membership Approvals"
         description="Accept or reject new employee registrations across all companies."
+        onMembershipUpdated={loadDashboard}
       />
 
       {showForm && (

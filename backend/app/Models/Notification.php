@@ -26,6 +26,8 @@ class Notification extends Model
     const TYPE_REPORT_SUBMITTED = 'report_submitted';
     const TYPE_TASK_COMPLETED = 'task_completed';
     const TYPE_WIN_RECORDED = 'win_recorded';
+    const TYPE_MEMBERSHIP_APPROVED = 'membership_approved';
+    const TYPE_MEMBERSHIP_REJECTED = 'membership_rejected';
 
     public function user()
     {

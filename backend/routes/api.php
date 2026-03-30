@@ -26,6 +26,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // Membership management
     Route::get('pending-memberships', [AuthController::class, 'getPendingMemberships']);
     Route::put('memberships/{user}/respond', [AuthController::class, 'respondToMembership']);
+    Route::put('memberships/respond-bulk', [AuthController::class, 'bulkRespondToMemberships']);
 
     Route::get('admin/overview', [AdminController::class, 'overview']);
     Route::get('admin/notification-channels', [AdminController::class, 'notificationChannels']);
