@@ -123,6 +123,9 @@ class TaskController extends Controller
 
             $validated = $request->validate([
                 'status' => 'required|in:pending,in_progress,pending_review,completed',
+                'submission_text' => 'nullable|string|max:2000',
+                'attachments' => 'nullable|array|max:5',
+                'attachments.*' => 'file|max:10240',
             ]);
         } else {
             abort_unless($this->canAssign($user), 403, 'Forbidden');
@@ -133,6 +136,9 @@ class TaskController extends Controller
                 'status' => 'in:pending,in_progress,pending_review,completed',
                 'priority' => 'in:low,medium,high,critical',
                 'assigned_to' => 'exists:users,id',
+                'submission_text' => 'nullable|string|max:2000',
+                'attachments' => 'nullable|array|max:5',
+                'attachments.*' => 'file|max:10240',
             ]);
 
             if (array_key_exists('status', $validated)
@@ -158,9 +164,34 @@ class TaskController extends Controller
             }
         }
 
-        $task->update($validated);
+        $taskData = collect($validated)->except(['attachments', 'submission_text'])->all();
+        if (!empty($taskData)) {
+            $task->update($taskData);
+        }
 
-        return response()->json($task);
+        if (!empty($validated['submission_text'])) {
+            $existingDescription = trim((string) $task->description);
+            $submissionHeader = 'Submission Note (' . ($user->name ?? 'User') . ' - ' . now()->format('Y-m-d H:i') . ')';
+            $submissionBody = trim($validated['submission_text']);
+
+            $task->description = trim($existingDescription . "\n\n" . $submissionHeader . "\n" . $submissionBody);
+            $task->save();
+        }
+
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments') as $file) {
+                $filePath = $file->store('task-attachments', 'public');
+
+                $task->attachments()->create([
+                    'file_name' => $file->getClientOriginalName(),
+                    'file_path' => $filePath,
+                    'file_type' => $file->getMimeType(),
+                    'file_size' => $file->getSize(),
+                ]);
+            }
+        }
+
+        return response()->json($task->load('attachments'));
     }
 
     public function destroy(Request $request, Task $task)

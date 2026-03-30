@@ -6,6 +6,9 @@ export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0
   const [loading, setLoading] = useState(false);
   const [expandedTaskId, setExpandedTaskId] = useState(null);
   const [respondingTaskId, setRespondingTaskId] = useState(null);
+  const [taskFiles, setTaskFiles] = useState({});
+  const [taskTexts, setTaskTexts] = useState({});
+  const [taskError, setTaskError] = useState('');
 
   useEffect(() => {
     if (selectedDate) {
@@ -45,6 +48,50 @@ export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0
     await updateTaskStatus(taskId, newStatus);
     setRespondingTaskId(null);
     setExpandedTaskId(null);
+  };
+
+  const handleTaskFileChange = (taskId, files) => {
+    const selectedFiles = Array.from(files || []).slice(0, 5);
+    setTaskFiles((prev) => ({ ...prev, [taskId]: selectedFiles }));
+  };
+
+  const handleTaskTextChange = (taskId, value) => {
+    setTaskTexts((prev) => ({ ...prev, [taskId]: value }));
+  };
+
+  const submitTaskWithFiles = async (taskId, status) => {
+    setRespondingTaskId(taskId);
+    setTaskError('');
+
+    try {
+      const formData = new FormData();
+      formData.append('_method', 'PUT');
+      formData.append('status', status);
+      formData.append('submission_text', taskTexts[taskId] || '');
+
+      (taskFiles[taskId] || []).forEach((file) => {
+        formData.append('attachments[]', file);
+      });
+
+      await axios.post(`/api/tasks/${taskId}`, formData, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      setExpandedTaskId(null);
+      setTaskFiles((prev) => ({ ...prev, [taskId]: [] }));
+      setTaskTexts((prev) => ({ ...prev, [taskId]: '' }));
+      fetchTasks();
+    } catch (error) {
+      const err = error.response?.data?.errors
+        ? Object.values(error.response.data.errors).flat().join(' ')
+        : error.response?.data?.message || 'Error updating task';
+      setTaskError(err);
+    }
+
+    setRespondingTaskId(null);
   };
 
   const priorityBadge = (p) => {
@@ -157,20 +204,39 @@ export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0
                           ))}
                         </div>
                       )}
-                      {isPendingManagerTaskForEmployer(task) && (
-                        <button
-                          type="button"
-                          onClick={() => setExpandedTaskId((prev) => (prev === task.id ? null : task.id))}
-                          className="mt-2 text-xs font-semibold text-primary hover:underline"
-                        >
-                          {expandedTaskId === task.id ? 'Hide response actions' : 'Click to answer manager'}
-                        </button>
-                      )}
                       {expandedTaskId === task.id && isPendingManagerTaskForEmployer(task) && (
-                        <div className="mt-2 flex flex-wrap gap-2">
+                        <div className="mt-3 space-y-3 rounded border border-stroke p-3">
+                          {taskError && (
+                            <p className="text-xs text-danger">{taskError}</p>
+                          )}
+                          <div>
+                            <label className="ta-label !mb-1">Task Update / Notes</label>
+                            <textarea
+                              value={taskTexts[task.id] || ''}
+                              onChange={(e) => handleTaskTextChange(task.id, e.target.value)}
+                              className="ta-input !py-1.5 !text-xs"
+                              rows={3}
+                              placeholder="Write what you have done or need from the manager"
+                            />
+                          </div>
+                          <div>
+                            <label className="ta-label !mb-1">Attach Work Files (optional)</label>
+                            <input
+                              type="file"
+                              multiple
+                              onChange={(e) => handleTaskFileChange(task.id, e.target.files)}
+                              className="ta-input !py-1.5 !text-xs"
+                            />
+                            {(taskFiles[task.id] || []).length > 0 && (
+                              <p className="mt-1 text-xs text-gray-500">
+                                {(taskFiles[task.id] || []).length} file(s) selected
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-2">
                           <button
                             type="button"
-                            onClick={() => respondToManager(task.id, 'in_progress')}
+                            onClick={() => submitTaskWithFiles(task.id, 'in_progress')}
                             disabled={respondingTaskId === task.id}
                             className="ta-btn-secondary !px-3 !py-1 !text-xs disabled:opacity-60"
                           >
@@ -178,12 +244,13 @@ export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0
                           </button>
                           <button
                             type="button"
-                            onClick={() => respondToManager(task.id, 'pending_review')}
+                            onClick={() => submitTaskWithFiles(task.id, 'pending_review')}
                             disabled={respondingTaskId === task.id}
                             className="ta-btn-primary !px-3 !py-1 !text-xs disabled:opacity-60"
                           >
                             Send to Manager
                           </button>
+                        </div>
                         </div>
                       )}
                     </td>
@@ -194,7 +261,18 @@ export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0
                       {task.due_date ? new Date(task.due_date).toLocaleDateString() : '—'}
                     </td>
                     <td className="py-4 pr-4">
-                      <span className={statusBadge(task.status)}>{task.status?.replace('_', ' ')}</span>
+                      <div className="flex items-center gap-2">
+                        <span className={statusBadge(task.status)}>{task.status?.replace('_', ' ')}</span>
+                        {isPendingManagerTaskForEmployer(task) && (
+                          <button
+                            type="button"
+                            onClick={() => setExpandedTaskId((prev) => (prev === task.id ? null : task.id))}
+                            className="ta-btn-primary !px-2 !py-1 !text-xs"
+                          >
+                            {expandedTaskId === task.id ? 'Hide' : 'Do Task'}
+                          </button>
+                        )}
+                      </div>
                     </td>
                     {(userRole === 'employee' || userRole === 'employer' || userRole === 'manager') && (
                       <td className="py-4">
