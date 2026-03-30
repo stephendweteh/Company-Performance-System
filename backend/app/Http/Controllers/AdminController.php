@@ -79,18 +79,25 @@ class AdminController extends Controller
     {
         $this->ensureSuperAdmin($request);
 
+        $validated = $request->validate([
+            'channel' => 'nullable|in:email,sms',
+            'status' => 'nullable|in:sent,failed,skipped',
+            'page' => 'nullable|integer|min:1',
+            'per_page' => 'nullable|integer|min:1|max:100',
+        ]);
+
         $query = NotificationDeliveryLog::with('user.company', 'actor')
             ->latest();
 
-        if ($request->filled('channel')) {
-            $query->where('channel', $request->channel);
+        if (!empty($validated['channel'])) {
+            $query->where('channel', $validated['channel']);
         }
 
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
+        if (!empty($validated['status'])) {
+            $query->where('status', $validated['status']);
         }
 
-        return response()->json($query->limit(25)->get());
+        return response()->json($query->paginate($validated['per_page'] ?? 10));
     }
 
     public function updateNotificationChannels(Request $request)

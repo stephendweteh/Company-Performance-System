@@ -38,6 +38,9 @@ export const SuperAdminDashboard = () => {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [membershipFilter, setMembershipFilter] = useState('all');
+  const [deliveryChannelFilter, setDeliveryChannelFilter] = useState('all');
+  const [deliveryStatusFilter, setDeliveryStatusFilter] = useState('all');
+  const [deliveryPagination, setDeliveryPagination] = useState({ current_page: 1, last_page: 1, per_page: 10, total: 0 });
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -119,9 +122,31 @@ export const SuperAdminDashboard = () => {
     setUsers(response.data);
   };
 
-  const fetchNotificationDeliveries = async () => {
-    const response = await axios.get('/api/admin/notification-deliveries', authConfig);
-    setDeliveryLogs(response.data || []);
+  const fetchNotificationDeliveries = async (page = deliveryPagination.current_page || 1) => {
+    const params = {
+      page,
+      per_page: deliveryPagination.per_page,
+    };
+
+    if (deliveryChannelFilter !== 'all') {
+      params.channel = deliveryChannelFilter;
+    }
+
+    if (deliveryStatusFilter !== 'all') {
+      params.status = deliveryStatusFilter;
+    }
+
+    const response = await axios.get('/api/admin/notification-deliveries', {
+      ...authConfig,
+      params,
+    });
+    setDeliveryLogs(response.data?.data || []);
+    setDeliveryPagination({
+      current_page: response.data?.current_page || 1,
+      last_page: response.data?.last_page || 1,
+      per_page: response.data?.per_page || 10,
+      total: response.data?.total || 0,
+    });
   };
 
   const loadDashboard = async () => {
@@ -150,6 +175,12 @@ export const SuperAdminDashboard = () => {
       setMessage(error.response?.data?.message || 'Failed to load users.');
     });
   }, [roleFilter, membershipFilter]);
+
+  useEffect(() => {
+    fetchNotificationDeliveries(1).catch((error) => {
+      setMessage(error.response?.data?.message || 'Failed to load notification deliveries.');
+    });
+  }, [deliveryChannelFilter, deliveryStatusFilter]);
 
   const handleSearchSubmit = async (event) => {
     event.preventDefault();
@@ -698,12 +729,33 @@ export const SuperAdminDashboard = () => {
             <h3 className="font-semibold text-sidebar">Membership Notification History</h3>
             <p className="mt-0.5 text-sm text-gray-400">Recent email and SMS delivery status for membership decisions.</p>
           </div>
-          <button onClick={fetchNotificationDeliveries} className="ta-btn-secondary">Refresh</button>
+          <button onClick={() => fetchNotificationDeliveries()} className="ta-btn-secondary">Refresh</button>
         </div>
         <div className="ta-card-body">
+          <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end">
+            <div>
+              <label className="ta-label">Channel</label>
+              <select value={deliveryChannelFilter} onChange={(e) => setDeliveryChannelFilter(e.target.value)} className="ta-input">
+                <option value="all">All channels</option>
+                <option value="email">Email</option>
+                <option value="sms">SMS</option>
+              </select>
+            </div>
+            <div>
+              <label className="ta-label">Delivery Status</label>
+              <select value={deliveryStatusFilter} onChange={(e) => setDeliveryStatusFilter(e.target.value)} className="ta-input">
+                <option value="all">All statuses</option>
+                <option value="sent">Sent</option>
+                <option value="failed">Failed</option>
+                <option value="skipped">Skipped</option>
+              </select>
+            </div>
+          </div>
+
           {deliveryLogs.length === 0 ? (
             <p className="py-8 text-center text-sm text-gray-400">No membership notification delivery history yet.</p>
           ) : (
+            <div className="space-y-4">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -739,6 +791,29 @@ export const SuperAdminDashboard = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-stroke pt-4 text-sm text-gray-500 md:flex-row md:items-center md:justify-between">
+              <p>
+                Showing page {deliveryPagination.current_page} of {deliveryPagination.last_page} · {deliveryPagination.total} log(s)
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => fetchNotificationDeliveries(deliveryPagination.current_page - 1)}
+                  disabled={loading || deliveryPagination.current_page <= 1}
+                  className="ta-btn-secondary disabled:opacity-60"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => fetchNotificationDeliveries(deliveryPagination.current_page + 1)}
+                  disabled={loading || deliveryPagination.current_page >= deliveryPagination.last_page}
+                  className="ta-btn-secondary disabled:opacity-60"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
             </div>
           )}
         </div>

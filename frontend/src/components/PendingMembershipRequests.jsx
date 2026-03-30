@@ -10,12 +10,13 @@ const PendingMembershipRequests = ({ title = 'Pending Membership Requests', desc
   const [selectedIds, setSelectedIds] = useState([]);
   const [teamFilter, setTeamFilter] = useState('all');
   const [registrationDateFilter, setRegistrationDateFilter] = useState('');
+  const [pagination, setPagination] = useState({ current_page: 1, last_page: 1, per_page: 10, total: 0 });
 
   const authConfig = {
     headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
   };
 
-  const loadRequests = async () => {
+  const loadRequests = async (page = pagination.current_page || 1) => {
     setLoading(true);
 
     try {
@@ -29,11 +30,20 @@ const PendingMembershipRequests = ({ title = 'Pending Membership Requests', desc
         params.registration_date = registrationDateFilter;
       }
 
+      params.page = page;
+      params.per_page = pagination.per_page;
+
       const response = await axios.get('/api/pending-memberships', {
         ...authConfig,
         params,
       });
-      setRequests(response.data || []);
+      setRequests(response.data?.data || []);
+      setPagination({
+        current_page: response.data?.current_page || 1,
+        last_page: response.data?.last_page || 1,
+        per_page: response.data?.per_page || 10,
+        total: response.data?.total || 0,
+      });
       setSelectedIds([]);
     } catch (error) {
       setMessage(error.response?.data?.message || 'Failed to load pending memberships.');
@@ -56,7 +66,7 @@ const PendingMembershipRequests = ({ title = 'Pending Membership Requests', desc
   }, []);
 
   useEffect(() => {
-    loadRequests();
+    loadRequests(1);
   }, [teamFilter, registrationDateFilter]);
 
   const handleRespond = async (userId, action) => {
@@ -69,6 +79,7 @@ const PendingMembershipRequests = ({ title = 'Pending Membership Requests', desc
       setRequests((prev) => prev.filter((request) => request.id !== userId));
       setSelectedIds((prev) => prev.filter((id) => id !== userId));
       await onMembershipUpdated?.();
+      await loadRequests(requests.length === 1 && pagination.current_page > 1 ? pagination.current_page - 1 : pagination.current_page);
     } catch (error) {
       setMessage(error.response?.data?.message || `Failed to ${action} membership request.`);
     } finally {
@@ -113,6 +124,7 @@ const PendingMembershipRequests = ({ title = 'Pending Membership Requests', desc
       setSelectedIds([]);
       setMessage(response.data?.message || `Memberships ${action}ed successfully.`);
       await onMembershipUpdated?.();
+      await loadRequests(requests.length === updatedIds.length && pagination.current_page > 1 ? pagination.current_page - 1 : pagination.current_page);
     } catch (error) {
       setMessage(error.response?.data?.message || `Failed to ${action} selected memberships.`);
     } finally {
@@ -192,7 +204,8 @@ const PendingMembershipRequests = ({ title = 'Pending Membership Requests', desc
         ) : requests.length === 0 ? (
           <p className="py-8 text-center text-sm text-gray-400">No pending membership requests right now.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="space-y-4">
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-stroke">
@@ -251,6 +264,29 @@ const PendingMembershipRequests = ({ title = 'Pending Membership Requests', desc
                 ))}
               </tbody>
             </table>
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-stroke pt-4 text-sm text-gray-500 md:flex-row md:items-center md:justify-between">
+              <p>
+                Showing page {pagination.current_page} of {pagination.last_page} · {pagination.total} request(s)
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => loadRequests(pagination.current_page - 1)}
+                  disabled={loading || pagination.current_page <= 1}
+                  className="ta-btn-secondary disabled:opacity-60"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => loadRequests(pagination.current_page + 1)}
+                  disabled={loading || pagination.current_page >= pagination.last_page}
+                  className="ta-btn-secondary disabled:opacity-60"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

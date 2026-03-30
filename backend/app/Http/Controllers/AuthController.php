@@ -24,6 +24,12 @@ class AuthController extends Controller
             'phone'      => 'nullable|string|max:30',
             'password'   => 'required|string|min:8|confirmed',
             'company_id' => 'required|integer|exists:companies,id',
+            'team_id'    => [
+                'nullable',
+                Rule::exists('teams', 'id')->where(function ($query) use ($request) {
+                    $query->where('company_id', $request->input('company_id'));
+                }),
+            ],
         ]);
 
         $user = User::create([
@@ -33,6 +39,7 @@ class AuthController extends Controller
             'password'          => Hash::make($validated['password']),
             'role'              => 'employee',
             'company_id'        => $validated['company_id'],
+            'team_id'           => $validated['team_id'] ?? null,
             'membership_status' => 'pending',
         ]);
 
@@ -143,6 +150,8 @@ class AuthController extends Controller
         $validated = $request->validate([
             'team_id' => 'nullable|exists:teams,id',
             'registration_date' => 'nullable|date',
+            'page' => 'nullable|integer|min:1',
+            'per_page' => 'nullable|integer|min:1|max:100',
         ]);
 
         // Only employers and super admins can view pending memberships
@@ -170,7 +179,7 @@ class AuthController extends Controller
             $pendingUsersQuery->whereDate('created_at', $validated['registration_date']);
         }
 
-        $pendingUsers = $pendingUsersQuery->get();
+        $pendingUsers = $pendingUsersQuery->paginate($validated['per_page'] ?? 10);
 
         return response()->json($pendingUsers);
     }

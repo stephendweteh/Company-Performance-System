@@ -160,9 +160,10 @@ function App() {
 function LoginPage() {
   const [mode, setMode] = useState('login');
   const [formData, setFormData] = useState({
-    name: '', email: '', phone: '', password: '', password_confirmation: '', company_id: '',
+    name: '', email: '', phone: '', password: '', password_confirmation: '', company_id: '', team_id: '',
   });
   const [companies, setCompanies] = useState([]);
+  const [teams, setTeams] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [registrationPending, setRegistrationPending] = useState(false);
@@ -175,6 +176,19 @@ function LoginPage() {
     }
   }, [mode]);
 
+  React.useEffect(() => {
+    if (mode !== 'register') {
+      return;
+    }
+
+    if (!formData.company_id) {
+      setTeams([]);
+      return;
+    }
+
+    fetchTeams(formData.company_id);
+  }, [mode, formData.company_id]);
+
   const fetchCompanies = async () => {
     try {
       const { default: api } = await import('./services/api');
@@ -186,8 +200,25 @@ function LoginPage() {
     }
   };
 
+  const fetchTeams = async (companyId) => {
+    try {
+      const { default: api } = await import('./services/api');
+      const response = await api.get('/api/public/teams', {
+        params: { company_id: companyId },
+      });
+      setTeams(response.data || []);
+    } catch (err) {
+      console.error('Failed to fetch teams:', err);
+      setTeams([]);
+    }
+  };
+
   const handleChange = (e) =>
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    setFormData((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+      ...(e.target.name === 'company_id' ? { team_id: '' } : {}),
+    }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -211,7 +242,8 @@ function LoginPage() {
         const { default: api } = await import('./services/api');
         await api.post('/api/register', formData);
         setRegistrationPending(true);
-        setFormData({ name: '', email: '', phone: '', password: '', password_confirmation: '', company_id: '' });
+        setFormData({ name: '', email: '', phone: '', password: '', password_confirmation: '', company_id: '', team_id: '' });
+        setTeams([]);
         setError('');
       }
     } catch (err) {
@@ -334,6 +366,21 @@ function LoginPage() {
                     <option value="">Choose a company...</option>
                     {companies.map(company => (
                       <option key={company.id} value={company.id}>{company.company_name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="ta-label">Select Your Team</label>
+                  <select
+                    name="team_id"
+                    value={formData.team_id}
+                    onChange={handleChange}
+                    className="ta-input"
+                    disabled={!formData.company_id || teams.length === 0}
+                  >
+                    <option value="">{formData.company_id ? (teams.length > 0 ? 'Choose a team...' : 'No teams available') : 'Select a company first'}</option>
+                    {teams.map(team => (
+                      <option key={team.id} value={team.id}>{team.team_name}</option>
                     ))}
                   </select>
                 </div>

@@ -7,6 +7,21 @@ use Illuminate\Http\Request;
 
 class TeamController extends Controller
 {
+    public function publicIndex(Request $request)
+    {
+        $validated = $request->validate([
+            'company_id' => 'required|exists:companies,id',
+        ]);
+
+        return response()->json(
+            Team::query()
+                ->select('id', 'team_name', 'company_id')
+                ->where('company_id', $validated['company_id'])
+                ->orderBy('team_name')
+                ->get()
+        );
+    }
+
     protected function canView($user)
     {
         return $user && in_array($user->role, ['employer', 'manager', 'super_admin']);
