@@ -160,7 +160,7 @@ function App() {
 function LoginPage() {
   const [mode, setMode] = useState('login');
   const [formData, setFormData] = useState({
-    name: '', email: '', password: '', password_confirmation: '', company_id: '',
+    name: '', email: '', phone: '', password: '', password_confirmation: '', company_id: '',
   });
   const [companies, setCompanies] = useState([]);
   const [error, setError] = useState('');
@@ -211,7 +211,7 @@ function LoginPage() {
         const { default: api } = await import('./services/api');
         await api.post('/api/register', formData);
         setRegistrationPending(true);
-        setFormData({ name: '', email: '', password: '', password_confirmation: '', company_id: '' });
+        setFormData({ name: '', email: '', phone: '', password: '', password_confirmation: '', company_id: '' });
         setError('');
       }
     } catch (err) {
@@ -298,6 +298,14 @@ function LoginPage() {
                 <label className="ta-label">Full Name</label>
                 <input type="text" name="name" value={formData.name} onChange={handleChange}
                   required className="ta-input" placeholder="John Doe" />
+              </div>
+            )}
+
+            {mode === 'register' && (
+              <div>
+                <label className="ta-label">Phone Number</label>
+                <input type="text" name="phone" value={formData.phone} onChange={handleChange}
+                  className="ta-input" placeholder="e.g. 233XXXXXXXXX" />
               </div>
             )}
 

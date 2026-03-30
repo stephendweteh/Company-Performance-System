@@ -3,10 +3,13 @@ import axios from '../services/api';
 
 const PendingMembershipRequests = ({ title = 'Pending Membership Requests', description = 'Review and approve new employee registrations.', onMembershipUpdated }) => {
   const [requests, setRequests] = useState([]);
+  const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [actioningId, setActioningId] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [teamFilter, setTeamFilter] = useState('all');
+  const [registrationDateFilter, setRegistrationDateFilter] = useState('');
 
   const authConfig = {
     headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
@@ -16,7 +19,20 @@ const PendingMembershipRequests = ({ title = 'Pending Membership Requests', desc
     setLoading(true);
 
     try {
-      const response = await axios.get('/api/pending-memberships', authConfig);
+      const params = {};
+
+      if (teamFilter !== 'all') {
+        params.team_id = teamFilter;
+      }
+
+      if (registrationDateFilter) {
+        params.registration_date = registrationDateFilter;
+      }
+
+      const response = await axios.get('/api/pending-memberships', {
+        ...authConfig,
+        params,
+      });
       setRequests(response.data || []);
       setSelectedIds([]);
     } catch (error) {
@@ -26,9 +42,22 @@ const PendingMembershipRequests = ({ title = 'Pending Membership Requests', desc
     }
   };
 
+  const loadTeams = async () => {
+    try {
+      const response = await axios.get('/api/teams', authConfig);
+      setTeams(response.data || []);
+    } catch (error) {
+    }
+  };
+
   useEffect(() => {
+    loadTeams();
     loadRequests();
   }, []);
+
+  useEffect(() => {
+    loadRequests();
+  }, [teamFilter, registrationDateFilter]);
 
   const handleRespond = async (userId, action) => {
     setActioningId(userId);
@@ -104,6 +133,22 @@ const PendingMembershipRequests = ({ title = 'Pending Membership Requests', desc
       </div>
 
       <div className="ta-card-body">
+        <div className="mb-4 grid grid-cols-1 gap-3 rounded-sm border border-stroke bg-whiten p-4 md:grid-cols-2">
+          <div>
+            <label className="ta-label">Filter By Team</label>
+            <select value={teamFilter} onChange={(e) => setTeamFilter(e.target.value)} className="ta-input">
+              <option value="all">All teams</option>
+              {teams.map((team) => (
+                <option key={team.id} value={team.id}>{team.team_name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="ta-label">Filter By Registration Date</label>
+            <input type="date" value={registrationDateFilter} onChange={(e) => setRegistrationDateFilter(e.target.value)} className="ta-input" />
+          </div>
+        </div>
+
         {requests.length > 0 && !loading && (
           <div className="mb-4 flex flex-col gap-3 rounded-sm border border-stroke bg-whiten p-4 md:flex-row md:items-center md:justify-between">
             <label className="flex items-center gap-2 text-sm text-gray-600">
@@ -154,7 +199,10 @@ const PendingMembershipRequests = ({ title = 'Pending Membership Requests', desc
                   <th className="pb-3 text-left font-semibold text-gray-500">Select</th>
                   <th className="pb-3 text-left font-semibold text-gray-500">Name</th>
                   <th className="pb-3 text-left font-semibold text-gray-500">Email</th>
+                  <th className="pb-3 text-left font-semibold text-gray-500">Phone</th>
                   <th className="pb-3 text-left font-semibold text-gray-500">Company</th>
+                  <th className="pb-3 text-left font-semibold text-gray-500">Team</th>
+                  <th className="pb-3 text-left font-semibold text-gray-500">Registered</th>
                   <th className="pb-3 text-left font-semibold text-gray-500">Role</th>
                   <th className="pb-3 text-left font-semibold text-gray-500">Status</th>
                   <th className="pb-3 text-left font-semibold text-gray-500">Actions</th>
@@ -173,7 +221,10 @@ const PendingMembershipRequests = ({ title = 'Pending Membership Requests', desc
                     </td>
                     <td className="py-4 pr-4 font-medium text-sidebar">{request.name}</td>
                     <td className="py-4 pr-4 text-gray-500">{request.email}</td>
+                    <td className="py-4 pr-4 text-gray-500">{request.phone || '-'}</td>
                     <td className="py-4 pr-4 text-gray-500">{request.company?.company_name || '-'}</td>
+                    <td className="py-4 pr-4 text-gray-500">{request.team?.team_name || '-'}</td>
+                    <td className="py-4 pr-4 text-gray-500">{new Date(request.created_at).toLocaleDateString()}</td>
                     <td className="py-4 pr-4 text-gray-500 capitalize">{request.role?.replace('_', ' ')}</td>
                     <td className="py-4 pr-4">
                       <span className="ta-badge-warning">Pending</span>

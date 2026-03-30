@@ -32,6 +32,7 @@ const emptyChannelSettings = {
 export const SuperAdminDashboard = () => {
   const [overview, setOverview] = useState(null);
   const [users, setUsers] = useState([]);
+  const [deliveryLogs, setDeliveryLogs] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [teams, setTeams] = useState([]);
   const [search, setSearch] = useState('');
@@ -118,12 +119,18 @@ export const SuperAdminDashboard = () => {
     setUsers(response.data);
   };
 
+  const fetchNotificationDeliveries = async () => {
+    const response = await axios.get('/api/admin/notification-deliveries', authConfig);
+    setDeliveryLogs(response.data || []);
+  };
+
   const loadDashboard = async () => {
     setLoading(true);
     try {
       await Promise.all([
         fetchOverview(),
         fetchUsers(),
+        fetchNotificationDeliveries(),
         fetchCompaniesAndTeams(),
         fetchNotificationChannels(),
       ]);
@@ -364,6 +371,13 @@ export const SuperAdminDashboard = () => {
   const membershipBadge = (status) => {
     if (status === 'rejected') return 'ta-badge-danger';
     if (status === 'pending') return 'ta-badge-warning';
+
+    return 'ta-badge-success';
+  };
+
+  const deliveryStatusBadge = (status) => {
+    if (status === 'failed') return 'ta-badge-danger';
+    if (status === 'skipped') return 'ta-badge-warning';
 
     return 'ta-badge-success';
   };
@@ -675,6 +689,58 @@ export const SuperAdminDashboard = () => {
               <p className="py-8 text-center text-sm text-gray-400">No users match the current filter.</p>
             )}
           </div>
+        </div>
+      </div>
+
+      <div className="ta-card">
+        <div className="ta-card-header flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-sidebar">Membership Notification History</h3>
+            <p className="mt-0.5 text-sm text-gray-400">Recent email and SMS delivery status for membership decisions.</p>
+          </div>
+          <button onClick={fetchNotificationDeliveries} className="ta-btn-secondary">Refresh</button>
+        </div>
+        <div className="ta-card-body">
+          {deliveryLogs.length === 0 ? (
+            <p className="py-8 text-center text-sm text-gray-400">No membership notification delivery history yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-stroke">
+                    <th className="pb-3 text-left font-semibold text-gray-500">User</th>
+                    <th className="pb-3 text-left font-semibold text-gray-500">Company</th>
+                    <th className="pb-3 text-left font-semibold text-gray-500">Channel</th>
+                    <th className="pb-3 text-left font-semibold text-gray-500">Recipient</th>
+                    <th className="pb-3 text-left font-semibold text-gray-500">Status</th>
+                    <th className="pb-3 text-left font-semibold text-gray-500">Provider</th>
+                    <th className="pb-3 text-left font-semibold text-gray-500">Actor</th>
+                    <th className="pb-3 text-left font-semibold text-gray-500">Created</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stroke">
+                  {deliveryLogs.map((log) => (
+                    <tr key={log.id} className="hover:bg-whiten transition-colors align-top">
+                      <td className="py-4 pr-4">
+                        <div className="font-medium text-sidebar">{log.user?.name || '-'}</div>
+                        <div className="text-xs text-gray-400">{log.user?.email || '-'}</div>
+                        {log.error_message && <div className="mt-1 text-xs text-danger">{log.error_message}</div>}
+                      </td>
+                      <td className="py-4 pr-4 text-gray-500">{log.user?.company?.company_name || log.meta?.company_name || '-'}</td>
+                      <td className="py-4 pr-4 text-gray-500 uppercase">{log.channel}</td>
+                      <td className="py-4 pr-4 text-gray-500">{log.recipient || '-'}</td>
+                      <td className="py-4 pr-4">
+                        <span className={deliveryStatusBadge(log.status)}>{log.status}</span>
+                      </td>
+                      <td className="py-4 pr-4 text-gray-500">{log.provider || '-'}</td>
+                      <td className="py-4 pr-4 text-gray-500">{log.actor?.name || '-'}</td>
+                      <td className="py-4 pr-4 text-gray-500">{new Date(log.created_at).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>

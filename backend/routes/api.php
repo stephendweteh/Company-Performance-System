@@ -30,6 +30,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::get('admin/overview', [AdminController::class, 'overview']);
     Route::get('admin/notification-channels', [AdminController::class, 'notificationChannels']);
+    Route::get('admin/notification-deliveries', [AdminController::class, 'notificationDeliveries']);
     Route::put('admin/notification-channels', [AdminController::class, 'updateNotificationChannels']);
     Route::post('admin/notification-channels/test-smtp', [AdminController::class, 'testSmtpConnection']);
     Route::post('admin/notification-channels/test-arkesel', [AdminController::class, 'testArkeselConnection']);

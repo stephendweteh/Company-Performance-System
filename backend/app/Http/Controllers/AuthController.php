@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Notification;
 use App\Models\NotificationChannelSetting;
+use App\Models\NotificationDeliveryLog;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -20,6 +21,7 @@ class AuthController extends Controller
         $validated = $request->validate([
             'name'       => 'required|string|max:255',
             'email'      => 'required|string|email|max:255|unique:users',
+            'phone'      => 'nullable|string|max:30',
             'password'   => 'required|string|min:8|confirmed',
             'company_id' => 'required|integer|exists:companies,id',
         ]);
@@ -27,6 +29,7 @@ class AuthController extends Controller
         $user = User::create([
             'name'              => $validated['name'],
             'email'             => $validated['email'],
+            'phone'             => $validated['phone'] ?? null,
             'password'          => Hash::make($validated['password']),
             'role'              => 'employee',
             'company_id'        => $validated['company_id'],
@@ -137,27 +140,37 @@ class AuthController extends Controller
     {
         $user = $request->user();
 
+        $validated = $request->validate([
+            'team_id' => 'nullable|exists:teams,id',
+            'registration_date' => 'nullable|date',
+        ]);
+
         // Only employers and super admins can view pending memberships
         if ($user->role === 'employee') {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
+        $pendingUsersQuery = User::where('membership_status', 'pending')
+            ->where('role', 'employee')
+            ->with('company', 'team')
+            ->orderBy('name');
+
         if ($user->role === 'super_admin') {
             // Super admin can see all pending memberships
-            $pendingUsers = User::where('membership_status', 'pending')
-                ->where('role', 'employee')
-                ->with('company')
-                ->orderBy('name')
-                ->get();
         } else {
             // Employer can only see pending memberships for their company
-            $pendingUsers = User::where('company_id', $user->company_id)
-                ->where('membership_status', 'pending')
-                ->where('role', 'employee')
-                ->with('company')
-                ->orderBy('name')
-                ->get();
+            $pendingUsersQuery->where('company_id', $user->company_id);
         }
+
+        if (!empty($validated['team_id'])) {
+            $pendingUsersQuery->where('team_id', $validated['team_id']);
+        }
+
+        if (!empty($validated['registration_date'])) {
+            $pendingUsersQuery->whereDate('created_at', $validated['registration_date']);
+        }
+
+        $pendingUsers = $pendingUsersQuery->get();
 
         return response()->json($pendingUsers);
     }
@@ -271,7 +284,7 @@ class AuthController extends Controller
             ? "Your membership for {$companyName} has been approved by {$actorName}. You can now sign in."
             : "Your membership for {$companyName} has been rejected by {$actorName}. Contact support or your company admin for help.";
 
-        Notification::create([
+        $notification = Notification::create([
             'user_id' => $user->id,
             'message' => $message,
             'status' => Notification::STATUS_UNREAD,
@@ -281,15 +294,21 @@ class AuthController extends Controller
 
         $settings = NotificationChannelSetting::first();
 
-        if ($settings) {
-            $this->sendMembershipEmail($user, $message, $settings, $isAccepted);
-            $this->sendMembershipSms($user, $message, $settings);
-        }
+        $this->sendMembershipEmail($user, $message, $settings, $isAccepted, $actor, $notification);
+        $this->sendMembershipSms($user, $message, $settings, $actor, $notification);
     }
 
-    protected function sendMembershipEmail(User $user, string $message, NotificationChannelSetting $settings, bool $isAccepted): void
+    protected function sendMembershipEmail(User $user, string $message, ?NotificationChannelSetting $settings, bool $isAccepted, User $actor, Notification $notification): void
     {
-        if (empty($settings->smtp_host) || empty($settings->smtp_port) || empty($settings->smtp_from_email) || empty($user->email)) {
+        $subject = $isAccepted ? 'Membership Approved' : 'Membership Rejected';
+
+        if (empty($user->email)) {
+            $this->logNotificationDelivery($user, $actor, $notification, NotificationDeliveryLog::CHANNEL_EMAIL, NotificationDeliveryLog::STATUS_SKIPPED, null, $subject, $message, 'smtp', 'User has no email address.');
+            return;
+        }
+
+        if (!$settings || empty($settings->smtp_host) || empty($settings->smtp_port) || empty($settings->smtp_from_email)) {
+            $this->logNotificationDelivery($user, $actor, $notification, NotificationDeliveryLog::CHANNEL_EMAIL, NotificationDeliveryLog::STATUS_SKIPPED, $user->email, $subject, $message, 'smtp', 'SMTP is not configured.');
             return;
         }
 
@@ -309,19 +328,27 @@ class AuthController extends Controller
                 $mailMessage->to($user->email)
                     ->subject($isAccepted ? 'Membership Approved' : 'Membership Rejected');
             });
+            $this->logNotificationDelivery($user, $actor, $notification, NotificationDeliveryLog::CHANNEL_EMAIL, NotificationDeliveryLog::STATUS_SENT, $user->email, $subject, $message, 'smtp');
         } catch (\Throwable $e) {
+            $this->logNotificationDelivery($user, $actor, $notification, NotificationDeliveryLog::CHANNEL_EMAIL, NotificationDeliveryLog::STATUS_FAILED, $user->email, $subject, $message, 'smtp', $e->getMessage());
         }
     }
 
-    protected function sendMembershipSms(User $user, string $message, NotificationChannelSetting $settings): void
+    protected function sendMembershipSms(User $user, string $message, ?NotificationChannelSetting $settings, User $actor, Notification $notification): void
     {
-        if (empty($settings->arkesel_api_key) || empty($settings->arkesel_sender_id) || empty($settings->arkesel_api_url) || empty($user->phone)) {
+        if (empty($user->phone)) {
+            $this->logNotificationDelivery($user, $actor, $notification, NotificationDeliveryLog::CHANNEL_SMS, NotificationDeliveryLog::STATUS_SKIPPED, null, null, $message, 'arkesel', 'User has no phone number.');
+            return;
+        }
+
+        if (!$settings || empty($settings->arkesel_api_key) || empty($settings->arkesel_sender_id) || empty($settings->arkesel_api_url)) {
+            $this->logNotificationDelivery($user, $actor, $notification, NotificationDeliveryLog::CHANNEL_SMS, NotificationDeliveryLog::STATUS_SKIPPED, $user->phone, null, $message, 'arkesel', 'SMS provider is not configured.');
             return;
         }
 
         try {
             if (str_contains($settings->arkesel_api_url, '/sms/api')) {
-                Http::timeout(20)->get($settings->arkesel_api_url, [
+                $response = Http::timeout(20)->get($settings->arkesel_api_url, [
                     'action' => 'send-sms',
                     'api_key' => $settings->arkesel_api_key,
                     'to' => $user->phone,
@@ -329,14 +356,52 @@ class AuthController extends Controller
                     'sms' => $message,
                 ]);
             } else {
-                Http::timeout(20)->post($settings->arkesel_api_url, [
+                $response = Http::timeout(20)->post($settings->arkesel_api_url, [
                     'api_key' => $settings->arkesel_api_key,
                     'sender' => $settings->arkesel_sender_id,
                     'to' => $user->phone,
                     'message' => $message,
                 ]);
             }
+
+            if ($response->successful()) {
+                $this->logNotificationDelivery($user, $actor, $notification, NotificationDeliveryLog::CHANNEL_SMS, NotificationDeliveryLog::STATUS_SENT, $user->phone, null, $message, 'arkesel');
+                return;
+            }
+
+            $this->logNotificationDelivery($user, $actor, $notification, NotificationDeliveryLog::CHANNEL_SMS, NotificationDeliveryLog::STATUS_FAILED, $user->phone, null, $message, 'arkesel', 'HTTP '.$response->status().': '.$response->body());
         } catch (\Throwable $e) {
+            $this->logNotificationDelivery($user, $actor, $notification, NotificationDeliveryLog::CHANNEL_SMS, NotificationDeliveryLog::STATUS_FAILED, $user->phone, null, $message, 'arkesel', $e->getMessage());
         }
+    }
+
+    protected function logNotificationDelivery(
+        User $user,
+        User $actor,
+        Notification $notification,
+        string $channel,
+        string $status,
+        ?string $recipient,
+        ?string $subject,
+        string $message,
+        ?string $provider = null,
+        ?string $errorMessage = null
+    ): void {
+        NotificationDeliveryLog::create([
+            'user_id' => $user->id,
+            'notification_id' => $notification->id,
+            'channel' => $channel,
+            'status' => $status,
+            'recipient' => $recipient,
+            'subject' => $subject,
+            'message' => $message,
+            'provider' => $provider,
+            'error_message' => $errorMessage,
+            'meta' => [
+                'notification_type' => $notification->type,
+                'company_name' => $user->company?->company_name,
+            ],
+            'created_by' => $actor->id,
+        ]);
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Company;
 use App\Models\NotificationChannelSetting;
+use App\Models\NotificationDeliveryLog;
 use App\Models\Notification;
 use App\Models\Report;
 use App\Models\Task;
@@ -72,6 +73,24 @@ class AdminController extends Controller
             'arkesel_api_url' => $settings->arkesel_api_url,
             'has_arkesel_api_key' => !empty($settings->arkesel_api_key),
         ]);
+    }
+
+    public function notificationDeliveries(Request $request)
+    {
+        $this->ensureSuperAdmin($request);
+
+        $query = NotificationDeliveryLog::with('user.company', 'actor')
+            ->latest();
+
+        if ($request->filled('channel')) {
+            $query->where('channel', $request->channel);
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        return response()->json($query->limit(25)->get());
     }
 
     public function updateNotificationChannels(Request $request)

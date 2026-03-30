@@ -68,6 +68,11 @@ class User extends Authenticatable
         return $this->hasMany(Notification::class, 'user_id');
     }
 
+    public function notificationDeliveryLogs()
+    {
+        return $this->hasMany(NotificationDeliveryLog::class, 'user_id');
+    }
+
     public function getProfilePhotoUrlAttribute()
     {
         return $this->profile_photo_path ? '/storage/'.$this->profile_photo_path : null;
