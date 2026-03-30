@@ -19,9 +19,11 @@ class ReportController extends Controller
         if ($currentUser->role === 'employee') {
             $query->where('employee_id', $currentUser->id);
         } elseif ($currentUser->role === 'employer') {
-            $query->whereHas('employee', function ($builder) use ($currentUser) {
-                $builder->where('role', 'employee')
-                    ->where('company_id', $currentUser->company_id);
+            $query->where(function ($builder) use ($currentUser) {
+                $builder->whereHas('employee', function ($employeeQuery) use ($currentUser) {
+                    $employeeQuery->where('role', 'employee')
+                        ->where('company_id', $currentUser->company_id);
+                })->orWhere('employee_id', $currentUser->id);
             });
         } elseif ($currentUser->role === 'manager') {
             $query->whereHas('employee', function ($builder) {

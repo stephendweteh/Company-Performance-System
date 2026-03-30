@@ -17,6 +17,9 @@ export const ReportSubmission = ({ selectedDate, userRole, onReportSubmitted }) 
 
   const canSubmit = ['employee', 'employer'].includes(userRole);
   const canRespond = ['manager', 'employer', 'super_admin'].includes(userRole);
+  const visibleReports = userRole === 'employer'
+    ? reports.filter((report) => ['submitted', 'reviewed'].includes(report.status))
+    : reports;
 
   const fetchReports = async () => {
     setLoadingReports(true);
@@ -169,16 +172,20 @@ export const ReportSubmission = ({ selectedDate, userRole, onReportSubmitted }) 
 
       <div className="ta-card">
         <div className="ta-card-header flex items-center justify-between">
-          <h3 className="font-semibold text-sidebar">Submitted Reports</h3>
+            <h3 className="font-semibold text-sidebar">
+              {userRole === 'employer' ? 'Submitted & Reviewed Reports' : 'Submitted Reports'}
+            </h3>
           <button className="ta-btn-secondary" onClick={fetchReports}>
             {loadingReports ? 'Loading...' : 'Refresh'}
           </button>
         </div>
         <div className="ta-card-body space-y-4">
-          {reports.length === 0 ? (
-            <p className="text-sm text-gray-400">No reports available.</p>
+            {visibleReports.length === 0 ? (
+              <p className="text-sm text-gray-400">
+                {userRole === 'employer' ? 'No submitted or reviewed reports available.' : 'No reports available.'}
+              </p>
           ) : (
-            reports.map((report) => (
+              visibleReports.map((report) => (
               <div key={report.id} className="rounded-sm border border-stroke p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h4 className="font-semibold text-sidebar">{report.title}</h4>
@@ -194,7 +201,7 @@ export const ReportSubmission = ({ selectedDate, userRole, onReportSubmitted }) 
                   </div>
                 )}
 
-                {canRespond && (
+                {canRespond && !(userRole === 'employer' && report.employee?.role === 'employer') && (
                   <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-4">
                     <select
                       className="ta-input md:col-span-1"
