@@ -155,6 +155,24 @@ export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0
     && task.status === 'pending'
   );
 
+  const extractSubmissionNotes = (description) => {
+    if (!description) return null;
+    const match = description.match(/Submission Note \([^)]+\)\n([\s\S]*?)(?=\n*$)/);
+    return match ? match[1].trim() : null;
+  };
+
+  const getOriginalDescription = (description) => {
+    if (!description) return '';
+    return description.split(/Submission Note \([^)]+\)/)[0].trim();
+  };
+
+  const isEmployerTaskWithSubmission = (task) => (
+    userRole === 'manager'
+    && task.assignee?.role === 'employer'
+    && task.creator?.role === 'manager'
+    && (task.status === 'in_progress' || task.status === 'pending_review')
+  );
+
   return (
     <div className="ta-card">
       <div className="ta-card-header flex items-center justify-between">
@@ -185,8 +203,27 @@ export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0
                   <tr key={task.id} className="group hover:bg-whiten transition-colors">
                     <td className="py-4 pr-4">
                       <p className="font-medium text-sidebar">{task.title}</p>
-                      {task.description && <p className="mt-0.5 text-xs text-gray-400 line-clamp-1">{task.description}</p>}
                       {task.creator?.name && <p className="mt-1 text-xs text-gray-400">by {task.creator.name}</p>}
+                      {task.description && (
+                        <>
+                          {getOriginalDescription(task.description) && (
+                            <p className="mt-0.5 text-xs text-gray-400 line-clamp-2">{getOriginalDescription(task.description)}</p>
+                          )}
+                          {isEmployerTaskWithSubmission(task) && extractSubmissionNotes(task.description) && (
+                            <div className="mt-2 rounded bg-blue-50 border border-blue-100 p-2">
+                              <p className="text-xs font-semibold text-blue-900">📋 Employer Response:</p>
+                              <p className="mt-1 text-xs text-blue-800 line-clamp-3">{extractSubmissionNotes(task.description)}</p>
+                              <button
+                                type="button"
+                                onClick={() => setExpandedTaskId((prev) => (prev === task.id ? null : task.id))}
+                                className="mt-1 text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                              >
+                                {expandedTaskId === task.id ? 'Hide full response' : 'View full response'}
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      )}
                       {task.attachments && Array.isArray(task.attachments) && task.attachments.length > 0 && (
                         <div className="mt-2 space-y-1">
                           <p className="text-xs font-semibold text-gray-500">Attachments ({task.attachments.length}):</p>
@@ -202,6 +239,16 @@ export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0
                               📎 {attachment.file_name}
                             </a>
                           ))}
+                        </div>
+                      )}
+                      {expandedTaskId === task.id && isEmployerTaskWithSubmission(task) && (
+                        <div className="mt-3 space-y-2 rounded border border-blue-200 bg-blue-50 p-3">
+                          {extractSubmissionNotes(task.description) && (
+                            <div>
+                              <p className="text-xs font-semibold text-blue-900">Full Employer Response:</p>
+                              <p className="mt-1.5 whitespace-pre-wrap text-xs text-blue-800">{extractSubmissionNotes(task.description)}</p>
+                            </div>
+                          )}
                         </div>
                       )}
                       {expandedTaskId === task.id && isPendingManagerTaskForEmployer(task) && (
