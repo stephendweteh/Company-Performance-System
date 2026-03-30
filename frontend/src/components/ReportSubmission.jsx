@@ -112,8 +112,95 @@ export const ReportSubmission = ({ selectedDate, userRole, onReportSubmitted }) 
     }));
   };
 
+  const getReportStatusLabel = (status) => {
+    if (status === 'submitted') return 'report pending';
+    return (status || '').replace('_', ' ');
+  };
+
+  const getReportStatusBadgeClass = (status) => {
+    if (status === 'submitted') return 'ta-badge-warning';
+    if (status === 'reviewed') return 'ta-badge-primary';
+    if (status === 'approved') return 'ta-badge-success';
+    if (status === 'needs_revision') return 'ta-badge-danger';
+    return 'ta-badge-primary';
+  };
+
+  const canRespondToReport = (report) => {
+    if (!canRespond) return false;
+
+    if (report.employee?.role === 'employer') {
+      return userRole === 'manager';
+    }
+
+    if (report.employee?.role === 'employee') {
+      return ['employer', 'super_admin'].includes(userRole);
+    }
+
+    return userRole === 'super_admin';
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="ta-card">
+        <div className="ta-card-header flex items-center justify-between">
+          <h3 className="font-semibold text-sidebar">
+            {userRole === 'employer' ? 'Submitted & Reviewed Reports' : 'Submitted Reports'}
+          </h3>
+          <button className="ta-btn-secondary" onClick={fetchReports}>
+            {loadingReports ? 'Loading...' : 'Refresh'}
+          </button>
+        </div>
+        <div className="ta-card-body space-y-4">
+          {visibleReports.length === 0 ? (
+            <p className="text-sm text-gray-400">
+              {userRole === 'employer' ? 'No submitted or reviewed reports available.' : 'No reports available.'}
+            </p>
+          ) : (
+            visibleReports.map((report) => (
+              <div key={report.id} className="rounded-sm border border-stroke p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h4 className="font-semibold text-sidebar">{report.title}</h4>
+                  <span className={getReportStatusBadgeClass(report.status)}>{getReportStatusLabel(report.status)}</span>
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  By: {report.employee?.name} | Date: {new Date(report.report_date).toLocaleDateString()}
+                </p>
+                <p className="mt-3 text-sm text-gray-700">{report.work_done}</p>
+                {report.response_comment && (
+                  <div className="mt-3 rounded bg-whiten p-3 text-sm text-gray-700">
+                    <span className="font-semibold">Response:</span> {report.response_comment}
+                  </div>
+                )}
+
+                {canRespondToReport(report) && (
+                  <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-4">
+                    <select
+                      className="ta-input md:col-span-1"
+                      value={responseByReport[report.id]?.status || ''}
+                      onChange={(e) => handleResponseField(report.id, 'status', e.target.value)}
+                    >
+                      <option value="">Select status</option>
+                      <option value="reviewed">Reviewed</option>
+                      <option value="approved">Approved</option>
+                      <option value="needs_revision">Needs revision</option>
+                    </select>
+                    <input
+                      className="ta-input md:col-span-2"
+                      placeholder="Write response..."
+                      value={responseByReport[report.id]?.comment || ''}
+                      onChange={(e) => handleResponseField(report.id, 'comment', e.target.value)}
+                    />
+                    <button className="ta-btn-primary" onClick={() => handleRespond(report)}>
+                      Respond
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
       <div className="ta-card">
         <div className="ta-card-header">
           <h2 className="font-semibold text-sidebar">
@@ -167,66 +254,6 @@ export const ReportSubmission = ({ selectedDate, userRole, onReportSubmitted }) 
         {canSubmit && !selectedDate && (
           <p className="text-sm text-gray-500">Select a date first to submit your report.</p>
         )}
-        </div>
-      </div>
-
-      <div className="ta-card">
-        <div className="ta-card-header flex items-center justify-between">
-            <h3 className="font-semibold text-sidebar">
-              {userRole === 'employer' ? 'Submitted & Reviewed Reports' : 'Submitted Reports'}
-            </h3>
-          <button className="ta-btn-secondary" onClick={fetchReports}>
-            {loadingReports ? 'Loading...' : 'Refresh'}
-          </button>
-        </div>
-        <div className="ta-card-body space-y-4">
-            {visibleReports.length === 0 ? (
-              <p className="text-sm text-gray-400">
-                {userRole === 'employer' ? 'No submitted or reviewed reports available.' : 'No reports available.'}
-              </p>
-          ) : (
-              visibleReports.map((report) => (
-              <div key={report.id} className="rounded-sm border border-stroke p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h4 className="font-semibold text-sidebar">{report.title}</h4>
-                  <span className="ta-badge-primary">{report.status?.replace('_', ' ')}</span>
-                </div>
-                <p className="mt-1 text-xs text-gray-500">
-                  By: {report.employee?.name} | Date: {new Date(report.report_date).toLocaleDateString()}
-                </p>
-                <p className="mt-3 text-sm text-gray-700">{report.work_done}</p>
-                {report.response_comment && (
-                  <div className="mt-3 rounded bg-whiten p-3 text-sm text-gray-700">
-                    <span className="font-semibold">Response:</span> {report.response_comment}
-                  </div>
-                )}
-
-                {canRespond && !(userRole === 'employer' && report.employee?.role === 'employer') && (
-                  <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-4">
-                    <select
-                      className="ta-input md:col-span-1"
-                      value={responseByReport[report.id]?.status || ''}
-                      onChange={(e) => handleResponseField(report.id, 'status', e.target.value)}
-                    >
-                      <option value="">Select status</option>
-                      <option value="reviewed">Reviewed</option>
-                      <option value="approved">Approved</option>
-                      <option value="needs_revision">Needs revision</option>
-                    </select>
-                    <input
-                      className="ta-input md:col-span-2"
-                      placeholder="Write response..."
-                      value={responseByReport[report.id]?.comment || ''}
-                      onChange={(e) => handleResponseField(report.id, 'comment', e.target.value)}
-                    />
-                    <button className="ta-btn-primary" onClick={() => handleRespond(report)}>
-                      Respond
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))
-          )}
         </div>
       </div>
     </div>
