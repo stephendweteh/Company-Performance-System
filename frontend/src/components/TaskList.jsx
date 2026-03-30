@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../services/api';
 
-export const TaskList = ({ selectedDate, userRole, currentUserId }) => {
+export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0 }) => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -9,7 +9,7 @@ export const TaskList = ({ selectedDate, userRole, currentUserId }) => {
     if (selectedDate) {
       fetchTasks();
     }
-  }, [selectedDate]);
+  }, [selectedDate, refreshKey]);
 
   const fetchTasks = async () => {
     setLoading(true);

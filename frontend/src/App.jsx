@@ -17,6 +17,7 @@ function App() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [activeTab, setActiveTab] = useState('calendar');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [taskRefreshKey, setTaskRefreshKey] = useState(0);
   const { user, refreshUser } = useContext(AuthContext);
   const canAssignTasks = ['employer', 'manager', 'super_admin'].includes(user?.role);
   const canAccessCompanies = ['employer', 'manager', 'super_admin'].includes(user?.role);
@@ -110,9 +111,9 @@ function App() {
           {/* ── Tasks ── */}
           {activeTab === 'tasks' && (
             <div className="space-y-6">
-              {canAssignTasks && <TaskCreator userRole={user?.role} onTaskCreated={() => {}} />}
+              {canAssignTasks && <TaskCreator userRole={user?.role} onTaskCreated={() => setTaskRefreshKey((prev) => prev + 1)} />}
               {selectedDate
-                ? <TaskList selectedDate={selectedDate} userRole={user?.role} currentUserId={user?.id} />
+                ? <TaskList selectedDate={selectedDate} userRole={user?.role} currentUserId={user?.id} refreshKey={taskRefreshKey} />
                 : <DatePrompt label="view and manage tasks" />
               }
             </div>
