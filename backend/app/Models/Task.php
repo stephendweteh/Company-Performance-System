@@ -28,6 +28,7 @@ class Task extends Model
 
     const STATUS_PENDING = 'pending';
     const STATUS_IN_PROGRESS = 'in_progress';
+    const STATUS_PENDING_REVIEW = 'pending_review';
     const STATUS_COMPLETED = 'completed';
 
     const PRIORITY_LOW = 'low';

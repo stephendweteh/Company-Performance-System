@@ -100,12 +100,13 @@ class TaskController extends Controller
     public function update(Request $request, Task $task)
     {
         $user = $request->user();
+        $task->loadMissing('creator', 'assignee');
 
         if ($user && $user->role === 'employee') {
             abort_unless($task->assigned_to === $user->id, 403, 'Forbidden');
 
             $validated = $request->validate([
-                'status' => 'required|in:pending,in_progress,completed',
+                'status' => 'required|in:pending,in_progress,pending_review,completed',
             ]);
         } else {
             abort_unless($this->canAssign($user), 403, 'Forbidden');
@@ -113,10 +114,32 @@ class TaskController extends Controller
             $validated = $request->validate([
                 'title' => 'string|max:255',
                 'description' => 'string',
-                'status' => 'in:pending,in_progress,completed',
+                'status' => 'in:pending,in_progress,pending_review,completed',
                 'priority' => 'in:low,medium,high,critical',
                 'assigned_to' => 'exists:users,id',
             ]);
+
+            if (array_key_exists('status', $validated)
+                && $task->creator
+                && $task->creator->role === 'manager'
+                && $task->assignee
+                && $task->assignee->role === 'employer'
+            ) {
+                if ($user->role === 'employer' && $task->assigned_to === $user->id && $validated['status'] === Task::STATUS_COMPLETED) {
+                    return response()->json(['message' => 'Employer cannot complete this task directly. Submit it for review.'], 422);
+                }
+
+                if ($validated['status'] === Task::STATUS_COMPLETED && $user->role !== 'manager') {
+                    return response()->json(['message' => 'Only the manager can complete and review this task.'], 403);
+                }
+
+                if ($user->role === 'employer' && $task->assigned_to === $user->id) {
+                    $allowedEmployerStatuses = [Task::STATUS_PENDING, Task::STATUS_IN_PROGRESS, Task::STATUS_PENDING_REVIEW];
+                    if (!in_array($validated['status'], $allowedEmployerStatuses, true)) {
+                        return response()->json(['message' => 'Employer can only update this task to pending, in progress, or pending review.'], 422);
+                    }
+                }
+            }
         }
 
         $task->update($validated);

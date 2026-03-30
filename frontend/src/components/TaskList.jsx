@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../services/api';
 
-export const TaskList = ({ selectedDate, userRole }) => {
+export const TaskList = ({ selectedDate, userRole, currentUserId }) => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -43,8 +43,53 @@ export const TaskList = ({ selectedDate, userRole }) => {
     return map[p] || 'ta-badge-primary';
   };
   const statusBadge = (s) => {
-    const map = { completed: 'ta-badge-success', in_progress: 'ta-badge-primary', pending: 'ta-badge-warning' };
+    const map = { completed: 'ta-badge-success', in_progress: 'ta-badge-primary', pending: 'ta-badge-warning', pending_review: 'ta-badge-warning' };
     return map[s] || 'ta-badge-primary';
+  };
+
+  const canUpdateStatus = (task) => {
+    if (userRole === 'employee') return true;
+
+    const isManagerReviewFlowTask = task.creator?.role === 'manager' && task.assignee?.role === 'employer';
+
+    if (userRole === 'employer') {
+      return isManagerReviewFlowTask && task.assigned_to === currentUserId;
+    }
+
+    if (userRole === 'manager') {
+      return isManagerReviewFlowTask && task.created_by === currentUserId;
+    }
+
+    return false;
+  };
+
+  const statusOptions = (task) => {
+    if (userRole === 'employee') {
+      return [
+        { value: 'pending', label: 'Pending' },
+        { value: 'in_progress', label: 'In Progress' },
+        { value: 'completed', label: 'Completed' },
+      ];
+    }
+
+    if (userRole === 'employer') {
+      return [
+        { value: 'pending', label: 'Pending' },
+        { value: 'in_progress', label: 'In Progress' },
+        { value: 'pending_review', label: 'Pending Review' },
+      ];
+    }
+
+    if (userRole === 'manager') {
+      return [
+        { value: 'pending', label: 'Pending' },
+        { value: 'in_progress', label: 'In Progress' },
+        { value: 'pending_review', label: 'Pending Review' },
+        { value: 'completed', label: 'Completed (Reviewed)' },
+      ];
+    }
+
+    return [];
   };
 
   return (
@@ -69,7 +114,7 @@ export const TaskList = ({ selectedDate, userRole }) => {
                   <th className="pb-3 text-left font-semibold text-gray-500">Priority</th>
                   <th className="pb-3 text-left font-semibold text-gray-500">Due</th>
                   <th className="pb-3 text-left font-semibold text-gray-500">Status</th>
-                  {userRole === 'employee' && <th className="pb-3" />}
+                  {(userRole === 'employee' || userRole === 'employer' || userRole === 'manager') && <th className="pb-3" />}
                 </tr>
               </thead>
               <tbody className="divide-y divide-stroke">
@@ -89,17 +134,21 @@ export const TaskList = ({ selectedDate, userRole }) => {
                     <td className="py-4 pr-4">
                       <span className={statusBadge(task.status)}>{task.status?.replace('_', ' ')}</span>
                     </td>
-                    {userRole === 'employee' && (
+                    {(userRole === 'employee' || userRole === 'employer' || userRole === 'manager') && (
                       <td className="py-4">
-                        <select
-                          value={task.status}
-                          onChange={(e) => updateTaskStatus(task.id, e.target.value)}
-                          className="ta-input !py-1 !text-xs"
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="in_progress">In Progress</option>
-                          <option value="completed">Completed</option>
-                        </select>
+                        {canUpdateStatus(task) ? (
+                          <select
+                            value={task.status}
+                            onChange={(e) => updateTaskStatus(task.id, e.target.value)}
+                            className="ta-input !py-1 !text-xs"
+                          >
+                            {statusOptions(task).map((option) => (
+                              <option key={option.value} value={option.value}>{option.label}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className="text-xs text-gray-400">Read only</span>
+                        )}
                       </td>
                     )}
                   </tr>

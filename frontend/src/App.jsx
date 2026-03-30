@@ -112,7 +112,7 @@ function App() {
             <div className="space-y-6">
               {canAssignTasks && <TaskCreator userRole={user?.role} onTaskCreated={() => {}} />}
               {selectedDate
-                ? <TaskList selectedDate={selectedDate} userRole={user?.role} />
+                ? <TaskList selectedDate={selectedDate} userRole={user?.role} currentUserId={user?.id} />
                 : <DatePrompt label="view and manage tasks" />
               }
             </div>
