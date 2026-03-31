@@ -14,16 +14,15 @@ export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0
   const [sortDir, setSortDir] = useState('asc');
 
   useEffect(() => {
-    if (selectedDate) {
-      fetchTasks();
-    }
+    fetchTasks();
   }, [selectedDate, refreshKey]);
 
   const fetchTasks = async () => {
     setLoading(true);
     try {
+      const params = selectedDate ? { date: selectedDate.toISOString().split('T')[0] } : {};
       const response = await axios.get('/api/tasks', {
-        params: { date: selectedDate.toISOString().split('T')[0] },
+        params,
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
       setTasks(response.data);

@@ -126,10 +126,7 @@ function App() {
                   onTaskCreated={() => setTaskRefreshKey((prev) => prev + 1)}
                 />
               )}
-              {selectedDate
-                ? <TaskList selectedDate={selectedDate} userRole={user?.role} currentUserId={user?.id} refreshKey={taskRefreshKey} />
-                : <DatePrompt label="view and manage tasks" />
-              }
+              <TaskList selectedDate={selectedDate} userRole={user?.role} currentUserId={user?.id} refreshKey={taskRefreshKey} />
             </div>
           )}
 
