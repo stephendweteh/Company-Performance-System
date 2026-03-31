@@ -21,7 +21,8 @@ export const ReportSubmission = ({ selectedDate, userRole, currentUserId, onRepo
 
   const canSubmit = ['employee', 'employer'].includes(userRole);
   const canRespond = ['manager', 'employer', 'super_admin'].includes(userRole);
-  const visibleReports = userRole === 'employer' && !showAllReports
+  const shouldUseScopedReportView = ['employee', 'employer'].includes(userRole) && !showAllReports;
+  const visibleReports = shouldUseScopedReportView
     ? reports.filter((report) => ['submitted', 'reviewed'].includes(report.status))
     : reports;
 
@@ -240,15 +241,17 @@ export const ReportSubmission = ({ selectedDate, userRole, currentUserId, onRepo
               <h3 className="font-semibold text-sidebar">
                 {userRole === 'employer'
                   ? (showAllReports ? 'All Reports' : 'Submitted & Reviewed Reports')
-                  : 'Submitted Reports'}
+                  : userRole === 'employee'
+                    ? (showAllReports ? 'All Reports' : 'Submitted Reports')
+                    : 'Submitted Reports'}
               </h3>
               <div className="flex items-center gap-2">
-                {userRole === 'employer' && (
+                {['employee', 'employer'].includes(userRole) && (
                   <button
                     className="ta-btn-secondary"
                     onClick={() => setShowAllReports((prev) => !prev)}
                   >
-                    {showAllReports ? 'Show Reviewed Only' : 'View All Reports'}
+                    {showAllReports ? 'Show Submitted Only' : 'View All Reports'}
                   </button>
                 )}
                 <button className="ta-btn-secondary" onClick={fetchReports}>
@@ -290,7 +293,11 @@ export const ReportSubmission = ({ selectedDate, userRole, currentUserId, onRepo
         <div className="ta-card-body space-y-4">
           {sortReports(filterReports()).length === 0 ? (
             <p className="text-sm text-gray-400">
-              {reportSearchTerm ? 'No reports match your search.' : (userRole === 'employer' ? 'No submitted or reviewed reports available.' : 'No reports available.')}
+              {reportSearchTerm
+                ? 'No reports match your search.'
+                : (['employee', 'employer'].includes(userRole) && !showAllReports
+                    ? 'No submitted or reviewed reports available.'
+                    : 'No reports available.')}
             </p>
           ) : (
             sortReports(filterReports()).map((report) => (
