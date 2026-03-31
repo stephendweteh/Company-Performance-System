@@ -20,6 +20,7 @@ export const TaskList = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('due_date');
   const [sortDir, setSortDir] = useState('asc');
+  const [showAllTasks, setShowAllTasks] = useState(false);
 
   useEffect(() => {
     fetchTasks();
@@ -231,8 +232,20 @@ export const TaskList = ({
         || task.description.toLowerCase().includes(searchTerm.toLowerCase());
 
       if (!matchesSearch) return false;
-      if (!pendingOnly) return true;
-      return task.status === 'pending';
+      if (!pendingOnly && !(userRole === 'employee' && !showAllTasks)) return true;
+      
+      // If pendingOnly from calendar click, show pending tasks
+      if (pendingOnly) {
+        return task.status === 'pending';
+      }
+      
+      // If employee viewing pending only (not showAllTasks)
+      if (userRole === 'employee' && !showAllTasks) {
+        const isActionable = ['pending', 'in_progress', 'pending_review'].includes(task.status);
+        return isActionable;
+      }
+      
+      return true;
     });
   };
 
@@ -342,13 +355,25 @@ export const TaskList = ({
           <button onClick={exportTasksCSV} className="ta-btn-secondary h-10">
             📥 Export CSV
           </button>
+          {userRole === 'employee' && (
+            <button
+              className="ta-btn-secondary h-10"
+              onClick={() => setShowAllTasks((prev) => !prev)}
+            >
+              {showAllTasks ? 'Show Pending Only' : 'Show All Tasks'}
+            </button>
+          )}
         </div>
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-stroke border-t-primary" />
           </div>
-        ) : tasks.length === 0 ? (
-          <p className="py-8 text-center text-sm text-gray-400">No tasks assigned for this date.</p>
+        ) : filterTasks().length === 0 ? (
+          <p className="py-8 text-center text-sm text-gray-400">
+            {userRole === 'employee' && !showAllTasks
+              ? 'No pending tasks assigned to you.'
+              : 'No tasks assigned for this date.'}
+          </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
