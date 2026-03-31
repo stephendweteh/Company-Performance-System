@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Notification;
 use App\Models\Report;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -9,6 +10,21 @@ use Illuminate\Support\Facades\Storage;
 
 class ReportController extends Controller
 {
+    protected function notifyUser(?User $recipient, string $message, string $type, int $relatedId, ?int $actorId = null): void
+    {
+        if (!$recipient || ($actorId && $recipient->id === $actorId)) {
+            return;
+        }
+
+        Notification::create([
+            'user_id' => $recipient->id,
+            'message' => $message,
+            'status' => Notification::STATUS_UNREAD,
+            'type' => $type,
+            'related_id' => $relatedId,
+        ]);
+    }
+
     public function index(Request $request)
     {
         $currentUser = $request->user();
@@ -99,6 +115,14 @@ class ReportController extends Controller
             'attachments' => $attachments,
         ]);
 
+        $this->notifyUser(
+            $report->reviewer,
+            ($currentUser->name ?? 'A user') . ' submitted a report: ' . $report->title,
+            Notification::TYPE_REPORT_SUBMITTED,
+            $report->id,
+            $currentUser->id
+        );
+
         return response()->json($report->load('employee', 'reviewer'), 201);
     }
 
@@ -143,6 +167,14 @@ class ReportController extends Controller
             'response_by' => $currentUser->id,
             'reviewer_id' => $report->reviewer_id ?? $currentUser->id,
         ]);
+
+        $this->notifyUser(
+            $report->employee,
+            ($currentUser->name ?? 'A reviewer') . ' responded to your report "' . $report->title . '" with status ' . str_replace('_', ' ', $validated['status']) . '.',
+            Notification::TYPE_REPORT_COMMENT,
+            $report->id,
+            $currentUser->id
+        );
 
         return response()->json($report->fresh()->load('employee', 'reviewer', 'responder'));
     }

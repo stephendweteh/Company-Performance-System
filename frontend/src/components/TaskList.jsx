@@ -7,6 +7,7 @@ export const TaskList = ({
   userRole,
   currentUserId,
   refreshKey = 0,
+  focusedTaskId = null,
   onStatusChange,
   pendingOnly = false,
   onClearPendingOnly,
@@ -26,12 +27,43 @@ export const TaskList = ({
 
   useEffect(() => {
     fetchTasks();
-  }, [selectedDate, refreshKey, isManagerViewingAllTasks]);
+  }, [selectedDate, refreshKey, isManagerViewingAllTasks, focusedTaskId]);
+
+  useEffect(() => {
+    if (!focusedTaskId) {
+      return;
+    }
+
+    setSearchTerm('');
+    setSortBy('due_date');
+    setSortDir('asc');
+
+    if ((userRole === 'manager' || userRole === 'employee') && !showAllTasks) {
+      setShowAllTasks(true);
+    }
+
+    if (pendingOnly && onClearPendingOnly) {
+      onClearPendingOnly();
+    }
+  }, [focusedTaskId, onClearPendingOnly, pendingOnly, showAllTasks, userRole]);
+
+  useEffect(() => {
+    if (!focusedTaskId || !tasks.some((task) => task.id === focusedTaskId)) {
+      return;
+    }
+
+    setExpandedTaskId(focusedTaskId);
+
+    requestAnimationFrame(() => {
+      const row = document.querySelector(`[data-task-id="${focusedTaskId}"]`);
+      row?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }, [focusedTaskId, tasks]);
 
   const fetchTasks = async () => {
     setLoading(true);
     try {
-      const params = selectedDate && !isManagerViewingAllTasks
+      const params = selectedDate && !isManagerViewingAllTasks && !focusedTaskId
         ? { date: selectedDate.toISOString().split('T')[0] }
         : {};
       const response = await axios.get('/api/tasks', {
@@ -133,8 +165,7 @@ export const TaskList = ({
     }
 
     if (userRole === 'employer') {
-      return (isManagerReviewFlowTask && task.assigned_to === currentUserId)
-        || (isEmployerReviewFlowTask && task.created_by === currentUserId);
+      return isEmployerReviewFlowTask && task.created_by === currentUserId;
     }
 
     if (userRole === 'manager') {
@@ -436,7 +467,11 @@ export const TaskList = ({
               </thead>
               <tbody className="divide-y divide-stroke">
                 {sortTasks(filterTasks()).map((task) => (
-                  <tr key={task.id} className="group hover:bg-whiten transition-colors">
+                  <tr
+                    key={task.id}
+                    data-task-id={task.id}
+                    className={`group transition-colors ${focusedTaskId === task.id ? 'bg-primary/5 ring-1 ring-primary/20' : 'hover:bg-whiten'}`}
+                  >
                     <td className="py-4 pr-4">
                       <p className="font-medium text-sidebar">{task.title}</p>
                       {userRole === 'manager' ? (

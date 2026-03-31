@@ -2,12 +2,28 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Notification;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Http\Request;
 
 class TaskController extends Controller
 {
+    protected function notifyUser(?User $recipient, string $message, string $type, int $relatedId, ?int $actorId = null): void
+    {
+        if (!$recipient || ($actorId && $recipient->id === $actorId)) {
+            return;
+        }
+
+        Notification::create([
+            'user_id' => $recipient->id,
+            'message' => $message,
+            'status' => Notification::STATUS_UNREAD,
+            'type' => $type,
+            'related_id' => $relatedId,
+        ]);
+    }
+
     protected function canAssign($user)
     {
         return $user && in_array($user->role, ['employer', 'manager', 'super_admin']);
@@ -105,6 +121,14 @@ class TaskController extends Controller
             }
         }
 
+        $this->notifyUser(
+            $assignee,
+            ($creator->name ?? 'A user') . ' assigned you a new task: ' . $task->title,
+            Notification::TYPE_TASK_ASSIGNED,
+            $task->id,
+            $creator->id
+        );
+
         return response()->json($task->load('assignee', 'creator', 'attachments'), 201);
     }
 
@@ -117,6 +141,7 @@ class TaskController extends Controller
     {
         $user = $request->user();
         $task->loadMissing('creator', 'assignee');
+        $originalStatus = $task->status;
         $isManagerReviewFlowTask = $task->creator
             && $task->creator->role === 'manager'
             && $task->assignee
@@ -230,6 +255,28 @@ class TaskController extends Controller
                     'file_type' => $file->getMimeType(),
                     'file_size' => $file->getSize(),
                 ]);
+            }
+        }
+
+        if (array_key_exists('status', $validated) && $validated['status'] !== $originalStatus) {
+            if ($validated['status'] === Task::STATUS_PENDING_REVIEW) {
+                $this->notifyUser(
+                    $task->creator,
+                    ($user->name ?? 'A user') . ' sent task "' . $task->title . '" for review.',
+                    Notification::TYPE_TASK_COMPLETED,
+                    $task->id,
+                    $user?->id
+                );
+            }
+
+            if ($validated['status'] === Task::STATUS_COMPLETED) {
+                $this->notifyUser(
+                    $task->assignee,
+                    'Your task "' . $task->title . '" was marked completed by ' . ($user->name ?? 'a reviewer') . '.',
+                    Notification::TYPE_TASK_COMPLETED,
+                    $task->id,
+                    $user?->id
+                );
             }
         }
 

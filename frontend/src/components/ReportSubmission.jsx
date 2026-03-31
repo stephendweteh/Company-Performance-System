@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from '../services/api';
 import { downloadSimplePdf } from '../utils/pdfExport';
 
-export const ReportSubmission = ({ selectedDate, userRole, currentUserId, onReportSubmitted }) => {
+export const ReportSubmission = ({ selectedDate, userRole, currentUserId, focusedReportId = null, onReportSubmitted }) => {
   const [formData, setFormData] = useState({
     title: '',
     work_done: '',
@@ -47,9 +47,31 @@ export const ReportSubmission = ({ selectedDate, userRole, currentUserId, onRepo
     setLoadingReports(false);
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetchReports();
-  }, [userRole]);
+  }, [userRole, focusedReportId]);
+
+  useEffect(() => {
+    if (!focusedReportId) {
+      return;
+    }
+
+    setShowAllReports(true);
+    setReportSearchTerm('');
+    setReportSortBy('report_date');
+    setReportSortDir('desc');
+  }, [focusedReportId]);
+
+  useEffect(() => {
+    if (!focusedReportId || !reports.some((report) => report.id === focusedReportId)) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      const card = document.querySelector(`[data-report-id="${focusedReportId}"]`);
+      card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }, [focusedReportId, reports]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -348,7 +370,11 @@ export const ReportSubmission = ({ selectedDate, userRole, currentUserId, onRepo
             </p>
           ) : (
             sortReports(filterReports()).map((report) => (
-              <div key={report.id} className="rounded-sm border border-stroke p-4">
+              <div
+                key={report.id}
+                data-report-id={report.id}
+                className={`rounded-sm border p-4 ${focusedReportId === report.id ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-stroke'}`}
+              >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h4 className="font-semibold text-sidebar">{report.title}</h4>
                   <span className={getReportStatusBadgeClass(report.status)}>{getReportStatusLabel(report.status)}</span>

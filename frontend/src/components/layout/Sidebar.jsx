@@ -70,6 +70,11 @@ const icons = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.856-1.487M15 10a3 3 0 11-6 0 3 3 0 016 0zM16 5h5v-2a3 3 0 00-5.856-1.487M6 20H1v-2a3 3 0 015.856-1.487M13 16H7v-2a3 3 0 0111.192 0v2z" />
     </Icon>
   ),
+  performance: (
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v18h18M7 14l3-3 3 2 5-6" />
+    </Icon>
+  ),
   close: (
     <Icon className="h-4 w-4">
       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -84,8 +89,8 @@ const navLinks = [
   { label: 'Achievements',  tab: 'wins',          roles: ['employee', 'employer', 'manager', 'super_admin'], icon: icons.wins },
   { label: 'Teams',         tab: 'teams',         roles: ['employer', 'super_admin'],                       icon: icons.teams },
   { label: 'Employer Groups', tab: 'employer_groups', roles: ['manager', 'super_admin'],                   icon: icons.employer_groups },
+  { label: 'Performance',   tab: 'performance',   roles: ['manager'],                                       icon: icons.performance },
   { label: 'Companies',     tab: 'companies',     roles: ['employer', 'manager', 'super_admin'],             icon: icons.companies },
-  { label: 'Notifications', tab: 'notifications', roles: ['employee', 'employer', 'manager', 'super_admin'], icon: icons.notifications },
   { label: 'Admin Panel',   tab: 'admin',         roles: ['super_admin'],                         icon: icons.admin },
 ];
 

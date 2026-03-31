@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from '../services/api';
 import { downloadSimplePdf } from '../utils/pdfExport';
 
-export const WinsRecorder = ({ selectedDate, userRole, onWinRecorded }) => {
+export const WinsRecorder = ({ selectedDate, userRole, focusedWinId = null, onWinRecorded }) => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -43,9 +43,31 @@ export const WinsRecorder = ({ selectedDate, userRole, onWinRecorded }) => {
     setLoadingWins(false);
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetchWins();
-  }, [userRole]);
+  }, [userRole, focusedWinId]);
+
+  useEffect(() => {
+    if (!focusedWinId) {
+      return;
+    }
+
+    setSearchTerm('');
+    setFilterStatus('');
+    setSortBy('date');
+    setSortDir('desc');
+  }, [focusedWinId]);
+
+  useEffect(() => {
+    if (!focusedWinId || !wins.some((win) => win.id === focusedWinId)) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      const card = document.querySelector(`[data-win-id="${focusedWinId}"]`);
+      card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }, [focusedWinId, wins]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -338,7 +360,11 @@ export const WinsRecorder = ({ selectedDate, userRole, onWinRecorded }) => {
             </p>
           ) : (
             filterAndSortWins().map((win) => (
-              <div key={win.id} className="rounded-sm border border-stroke p-4">
+              <div
+                key={win.id}
+                data-win-id={win.id}
+                className={`rounded-sm border p-4 ${focusedWinId === win.id ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-stroke'}`}
+              >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h4 className="font-semibold text-sidebar">{win.title}</h4>
                   <span className="ta-badge-primary">{win.status?.replace('_', ' ') || 'submitted'}</span>

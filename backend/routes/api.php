@@ -10,6 +10,7 @@ use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\TeamController;
 use App\Http\Controllers\EmployerGroupController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PerformanceController;
 use App\Http\Controllers\UserController;
 
 // Public auth routes
@@ -46,6 +47,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::put('admin/users/{user}/role', [AdminController::class, 'updateUserRole']);
     Route::delete('admin/users/{user}', [AdminController::class, 'deleteUser']);
     Route::post('admin/reset-data', [AdminController::class, 'resetData']);
+    Route::get('performance/company-overview', [PerformanceController::class, 'companyOverview']);
 
     // Tasks
     Route::apiResource('tasks', TaskController::class);

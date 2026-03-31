@@ -10,6 +10,7 @@ import Notifications from './components/Notifications';
 import CompanyManagement from './components/CompanyManagement';
 import TeamsManagement from './components/TeamsManagement';
 import EmployerGroupsManagement from './components/EmployerGroupsManagement';
+import PerformanceDashboard from './components/PerformanceDashboard';
 import SuperAdminDashboard from './components/SuperAdminDashboard';
 import ProfileSettings from './components/ProfileSettings';
 import AuthContext from './context/AuthContext';
@@ -27,6 +28,9 @@ function App() {
   const [activeTab, setActiveTab] = useState('calendar');
   const [dateSelectionTargetTab, setDateSelectionTargetTab] = useState(null);
   const [employeePendingFocus, setEmployeePendingFocus] = useState(false);
+  const [focusedTaskId, setFocusedTaskId] = useState(null);
+  const [focusedReportId, setFocusedReportId] = useState(null);
+  const [focusedWinId, setFocusedWinId] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [taskRefreshKey, setTaskRefreshKey] = useState(0);
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
@@ -44,8 +48,56 @@ function App() {
       setSelectedDate(null);
       setDateSelectionTargetTab(null);
       setEmployeePendingFocus(false);
+      setFocusedTaskId(null);
+      setFocusedReportId(null);
+      setFocusedWinId(null);
     }
   }, [user?.id]);
+
+  useEffect(() => {
+    const handleNotificationNavigate = (event) => {
+      const notification = event.detail?.notification;
+      const relatedId = Number(notification?.related_id || 0) || null;
+
+      setEmployeePendingFocus(false);
+      setDateSelectionTargetTab(null);
+
+      if (relatedId && ['task_assigned', 'task_due', 'task_completed'].includes(notification?.type)) {
+        setActiveTab('tasks');
+        setFocusedTaskId(relatedId);
+        setFocusedReportId(null);
+        setFocusedWinId(null);
+        return;
+      }
+
+      if (relatedId && ['report_comment', 'report_submitted'].includes(notification?.type)) {
+        setActiveTab('reports');
+        setFocusedTaskId(null);
+        setFocusedReportId(relatedId);
+        setFocusedWinId(null);
+        return;
+      }
+
+      if (relatedId && notification?.type === 'win_recorded') {
+        setActiveTab('wins');
+        setFocusedTaskId(null);
+        setFocusedReportId(null);
+        setFocusedWinId(relatedId);
+        return;
+      }
+
+      setActiveTab('notifications');
+      setFocusedTaskId(null);
+      setFocusedReportId(null);
+      setFocusedWinId(null);
+    };
+
+    window.addEventListener('notification-navigate', handleNotificationNavigate);
+
+    return () => {
+      window.removeEventListener('notification-navigate', handleNotificationNavigate);
+    };
+  }, []);
 
   useEffect(() => {
     fetchBranding();
@@ -189,6 +241,7 @@ function App() {
                 userRole={user?.role}
                 currentUserId={user?.id}
                 refreshKey={taskRefreshKey}
+                focusedTaskId={focusedTaskId}
                 onStatusChange={() => setCalendarRefreshKey((prev) => prev + 1)}
                 pendingOnly={user?.role === 'employee' && employeePendingFocus}
                 onClearPendingOnly={() => setEmployeePendingFocus(false)}
@@ -198,19 +251,19 @@ function App() {
 
           {/* ── Reports ── */}
           {activeTab === 'reports' && (
-            ['manager', 'super_admin'].includes(user?.role)
-              ? <ReportSubmission selectedDate={selectedDate} userRole={user?.role} currentUserId={user?.id} onReportSubmitted={() => setCalendarRefreshKey((prev) => prev + 1)} />
+            ['manager', 'super_admin'].includes(user?.role) || Boolean(focusedReportId)
+              ? <ReportSubmission selectedDate={selectedDate} userRole={user?.role} currentUserId={user?.id} focusedReportId={focusedReportId} onReportSubmitted={() => setCalendarRefreshKey((prev) => prev + 1)} />
               : selectedDate
-                ? <ReportSubmission selectedDate={selectedDate} userRole={user?.role} currentUserId={user?.id} onReportSubmitted={() => setCalendarRefreshKey((prev) => prev + 1)} />
+                ? <ReportSubmission selectedDate={selectedDate} userRole={user?.role} currentUserId={user?.id} focusedReportId={focusedReportId} onReportSubmitted={() => setCalendarRefreshKey((prev) => prev + 1)} />
                 : <DatePrompt label="submit a daily report" targetTab="reports" />
           )}
 
           {/* ── Wins ── */}
           {activeTab === 'wins' && (
-            ['manager', 'super_admin'].includes(user?.role)
-              ? <WinsRecorder selectedDate={selectedDate} userRole={user?.role} />
+            ['manager', 'super_admin'].includes(user?.role) || Boolean(focusedWinId)
+              ? <WinsRecorder selectedDate={selectedDate} userRole={user?.role} focusedWinId={focusedWinId} />
               : selectedDate
-                ? <WinsRecorder selectedDate={selectedDate} userRole={user?.role} onWinRecorded={() => {}} />
+                ? <WinsRecorder selectedDate={selectedDate} userRole={user?.role} focusedWinId={focusedWinId} onWinRecorded={() => {}} />
                 : <DatePrompt label="record an achievement" targetTab="wins" />
           )}
 
@@ -222,6 +275,9 @@ function App() {
 
           {/* ── Employer Groups ── */}
           {activeTab === 'employer_groups' && user?.role === 'manager' && <EmployerGroupsManagement />}
+
+          {/* ── Performance ── */}
+          {activeTab === 'performance' && user?.role === 'manager' && <PerformanceDashboard />}
 
           {/* ── Admin ── */}
           {activeTab === 'admin' && isSuperAdmin && <SuperAdminDashboard onBrandingUpdated={fetchBranding} />}

@@ -107,6 +107,7 @@ class AuthController extends Controller
             'phone' => 'nullable|string|max:30',
             'bio' => 'nullable|string|max:2000',
             'profile_photo' => 'nullable|image|max:2048',
+            'remove_profile_photo' => 'nullable|boolean',
             'current_password' => 'nullable|string',
             'password' => 'nullable|string|min:8|confirmed',
         ]);
@@ -117,12 +118,21 @@ class AuthController extends Controller
             }
         }
 
+        $profilePhotoPath = $user->profile_photo_path;
+
+        if ($request->boolean('remove_profile_photo')) {
+            if ($user->profile_photo_path) {
+                Storage::disk('public')->delete($user->profile_photo_path);
+            }
+            $profilePhotoPath = null;
+        }
+
         if ($request->hasFile('profile_photo')) {
             if ($user->profile_photo_path) {
                 Storage::disk('public')->delete($user->profile_photo_path);
             }
 
-            $validated['profile_photo_path'] = $request->file('profile_photo')->store('profile-photos', 'public');
+            $profilePhotoPath = $request->file('profile_photo')->store('profile-photos', 'public');
         }
 
         $user->update([
@@ -130,7 +140,7 @@ class AuthController extends Controller
             'email' => $validated['email'],
             'phone' => $validated['phone'] ?? null,
             'bio' => $validated['bio'] ?? null,
-            'profile_photo_path' => $validated['profile_photo_path'] ?? $user->profile_photo_path,
+            'profile_photo_path' => $profilePhotoPath,
             'password' => !empty($validated['password']) ? Hash::make($validated['password']) : $user->password,
         ]);
 

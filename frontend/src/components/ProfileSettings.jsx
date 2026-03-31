@@ -13,6 +13,7 @@ const ProfileSettings = ({ user, onProfileUpdated }) => {
   });
   const [photoFile, setPhotoFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');
+  const [removePhoto, setRemovePhoto] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -28,9 +29,15 @@ const ProfileSettings = ({ user, onProfileUpdated }) => {
     });
     setPreviewUrl('');
     setPhotoFile(null);
+    setRemovePhoto(false);
   }, [user]);
 
-  const displayPhoto = useMemo(() => previewUrl || user?.profile_photo_url || '', [previewUrl, user]);
+  const displayPhoto = useMemo(() => {
+    if (removePhoto) {
+      return '';
+    }
+    return previewUrl || user?.profile_photo_url || '';
+  }, [previewUrl, removePhoto, user]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -44,6 +51,13 @@ const ProfileSettings = ({ user, onProfileUpdated }) => {
     }
     setPhotoFile(file);
     setPreviewUrl(URL.createObjectURL(file));
+    setRemovePhoto(false);
+  };
+
+  const handleRemovePhoto = () => {
+    setPhotoFile(null);
+    setPreviewUrl('');
+    setRemovePhoto(true);
   };
 
   const handleSubmit = async (event) => {
@@ -60,6 +74,9 @@ const ProfileSettings = ({ user, onProfileUpdated }) => {
       payload.append('current_password', formData.current_password || '');
       payload.append('password', formData.password || '');
       payload.append('password_confirmation', formData.password_confirmation || '');
+      if (removePhoto) {
+        payload.append('remove_profile_photo', '1');
+      }
       if (photoFile) {
         payload.append('profile_photo', photoFile);
       }
@@ -75,6 +92,7 @@ const ProfileSettings = ({ user, onProfileUpdated }) => {
       setMessage('Profile updated successfully.');
       setPhotoFile(null);
       setPreviewUrl('');
+      setRemovePhoto(false);
       if (onProfileUpdated) {
         await onProfileUpdated();
       }
@@ -114,6 +132,19 @@ const ProfileSettings = ({ user, onProfileUpdated }) => {
             </div>
             <label className="ta-label mt-4">Upload new photo</label>
             <input type="file" accept="image/*" onChange={handlePhotoChange} className="ta-input" />
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleRemovePhoto}
+                disabled={saving || (!user?.profile_photo_url && !previewUrl)}
+                className="ta-btn-secondary disabled:opacity-60"
+              >
+                Remove photo
+              </button>
+              {removePhoto && (
+                <span className="text-xs text-gray-500">Photo will be removed when you save.</span>
+              )}
+            </div>
             <p className="mt-2 text-xs text-gray-400">JPG, PNG, WEBP. Max 2MB.</p>
           </div>
 

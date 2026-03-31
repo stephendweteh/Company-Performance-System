@@ -2,12 +2,28 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Notification;
 use App\Models\Win;
 use App\Models\User;
 use Illuminate\Http\Request;
 
 class WinController extends Controller
 {
+    protected function notifyUser(?User $recipient, string $message, string $type, int $relatedId, ?int $actorId = null): void
+    {
+        if (!$recipient || ($actorId && $recipient->id === $actorId)) {
+            return;
+        }
+
+        Notification::create([
+            'user_id' => $recipient->id,
+            'message' => $message,
+            'status' => Notification::STATUS_UNREAD,
+            'type' => $type,
+            'related_id' => $relatedId,
+        ]);
+    }
+
     public function index(Request $request)
     {
         $currentUser = $request->user();
@@ -85,6 +101,14 @@ class WinController extends Controller
             'status' => Win::STATUS_SUBMITTED,
         ]);
 
+        $this->notifyUser(
+            $win->reviewer,
+            ($currentUser->name ?? 'A user') . ' recorded an achievement: ' . $win->title,
+            Notification::TYPE_WIN_RECORDED,
+            $win->id,
+            $currentUser->id
+        );
+
         return response()->json($win->load('employee', 'task', 'reviewer'), 201);
     }
 
@@ -130,6 +154,19 @@ class WinController extends Controller
             'responded_at' => now(),
             'response_by' => $currentUser->id,
         ]);
+
+        $statusLabel = str_replace('_', ' ', $validated['status'] ?? $win->status);
+        $scoreSuffix = array_key_exists('score', $validated) && $validated['score']
+            ? ' Score: ' . $validated['score'] . '/5.'
+            : '';
+
+        $this->notifyUser(
+            $win->employee,
+            ($currentUser->name ?? 'A reviewer') . ' responded to your achievement "' . $win->title . '" with status ' . $statusLabel . '.' . $scoreSuffix,
+            Notification::TYPE_WIN_RECORDED,
+            $win->id,
+            $currentUser->id
+        );
 
         return response()->json($win->fresh()->load('employee', 'task', 'reviewer', 'responder'));
     }
