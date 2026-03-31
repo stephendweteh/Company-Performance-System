@@ -4,7 +4,8 @@ import axios from '../services/api';
 export const CalendarDashboard = ({ onDateSelect }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(null);
-  const [pendingTaskDays, setPendingTaskDays] = useState([]);
+  const [taskDays, setTaskDays] = useState([]);
+  const [reportDays, setReportDays] = useState([]);
   const daysInMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1).getDay();
   const today = new Date();
@@ -22,31 +23,29 @@ export const CalendarDashboard = ({ onDateSelect }) => {
   };
 
   useEffect(() => {
-    const fetchPendingTaskDays = async () => {
-      try {
-        const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-        const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    const fetchCalendarData = async () => {
+      const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+      const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
 
+      // Fetch tasks for the month (all active statuses)
+      try {
         const response = await axios.get('/api/tasks', {
           params: {
-            status: 'pending',
             start_date: toDateString(monthStart),
             end_date: toDateString(monthEnd),
           },
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+          headers,
         });
 
         const daySet = new Set();
-
         (response.data || []).forEach((task) => {
           const taskStart = parseDate(task.start_date);
           const taskEnd = parseDate(task.due_date);
-
           if (!taskStart || !taskEnd) return;
 
           const rangeStart = taskStart > monthStart ? taskStart : monthStart;
           const rangeEnd = taskEnd < monthEnd ? taskEnd : monthEnd;
-
           if (rangeStart > rangeEnd) return;
 
           const cursor = new Date(rangeStart);
@@ -55,15 +54,28 @@ export const CalendarDashboard = ({ onDateSelect }) => {
             cursor.setDate(cursor.getDate() + 1);
           }
         });
+        setTaskDays(Array.from(daySet));
+      } catch {
+        setTaskDays([]);
+      }
 
-        setPendingTaskDays(Array.from(daySet));
-      } catch (error) {
-        console.error('Failed to load calendar task indicators:', error);
-        setPendingTaskDays([]);
+      // Fetch reports for the month
+      try {
+        const response = await axios.get('/api/reports', { headers });
+        const daySet = new Set();
+        (response.data || []).forEach((report) => {
+          const d = parseDate(report.report_date);
+          if (d && d.getMonth() === currentDate.getMonth() && d.getFullYear() === currentDate.getFullYear()) {
+            daySet.add(d.getDate());
+          }
+        });
+        setReportDays(Array.from(daySet));
+      } catch {
+        setReportDays([]);
       }
     };
 
-    fetchPendingTaskDays();
+    fetchCalendarData();
   }, [currentDate]);
 
   const handlePrevMonth = () =>
@@ -121,7 +133,8 @@ export const CalendarDashboard = ({ onDateSelect }) => {
             const day = i + 1;
             const active = day === selectedDay;
             const tod = isToday(day);
-            const hasPendingTask = pendingTaskDays.includes(day);
+            const hasTask = taskDays.includes(day);
+            const hasReport = reportDays.includes(day);
             return (
               <button
                 key={day}
@@ -136,8 +149,11 @@ export const CalendarDashboard = ({ onDateSelect }) => {
                   }`}
               >
                 {day}
-                {hasPendingTask && !active && (
-                  <span className="absolute bottom-1 h-1.5 w-1.5 rounded-full bg-warning" />
+                {(hasTask || hasReport) && !active && (
+                  <span className="absolute bottom-1 flex items-center gap-0.5">
+                    {hasTask && <span className="h-1.5 w-1.5 rounded-full bg-warning" />}
+                    {hasReport && <span className="h-1.5 w-1.5 rounded-full bg-success" />}
+                  </span>
                 )}
               </button>
             );
@@ -150,6 +166,14 @@ export const CalendarDashboard = ({ onDateSelect }) => {
             </span>
           </p>
         )}
+        <div className="mt-4 flex items-center justify-center gap-4 text-xs text-gray-400">
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-warning inline-block" /> Tasks
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-success inline-block" /> Reports
+          </span>
+        </div>
       </div>
     </div>
   );
