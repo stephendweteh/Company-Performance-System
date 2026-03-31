@@ -11,6 +11,7 @@ backend_l8_seed/.env
 frontend/dist/
 backend/public/hot
 backend_l8_seed/public/hot
+cpanel-deploy/
 
 # ── Laravel generated / cache ─────────────────────────────
 backend/storage/logs/*.log
