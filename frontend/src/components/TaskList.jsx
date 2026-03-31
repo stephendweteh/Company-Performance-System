@@ -124,11 +124,7 @@ export const TaskList = ({
     const isEmployerReviewFlowTask = task.creator?.role === 'employer' && task.assignee?.role === 'employee';
 
     if (userRole === 'employee') {
-      if (isEmployerReviewFlowTask) {
-        return task.assigned_to === currentUserId;
-      }
-
-      return true;
+      return false;
     }
 
     if (userRole === 'employer') {
@@ -196,11 +192,11 @@ export const TaskList = ({
     && task.status === 'pending'
   );
 
-  const isPendingEmployerTaskForEmployee = (task) => (
+  const isActionableEmployerTaskForEmployee = (task) => (
     userRole === 'employee'
     && task.assigned_to === currentUserId
     && task.creator?.role === 'employer'
-    && task.status === 'pending'
+    && (task.status === 'pending' || task.status === 'in_progress')
   );
 
   const extractSubmissionNotes = (description) => {
@@ -473,7 +469,7 @@ export const TaskList = ({
                         </div>
                         </div>
                       )}
-                      {expandedTaskId === task.id && isPendingEmployerTaskForEmployee(task) && (
+                      {expandedTaskId === task.id && isActionableEmployerTaskForEmployee(task) && (
                         <div className="mt-3 space-y-3 rounded border border-stroke p-3">
                           {taskError && (
                             <p className="text-xs text-danger">{taskError}</p>
@@ -503,14 +499,16 @@ export const TaskList = ({
                             )}
                           </div>
                           <div className="flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              onClick={() => submitTaskWithFiles(task.id, 'in_progress')}
-                              disabled={respondingTaskId === task.id}
-                              className="ta-btn-secondary !px-3 !py-1 !text-xs disabled:opacity-60"
-                            >
-                              Start Task
-                            </button>
+                            {task.status === 'pending' && (
+                              <button
+                                type="button"
+                                onClick={() => submitTaskWithFiles(task.id, 'in_progress')}
+                                disabled={respondingTaskId === task.id}
+                                className="ta-btn-secondary !px-3 !py-1 !text-xs disabled:opacity-60"
+                              >
+                                Start Task
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => submitTaskWithFiles(task.id, 'pending_review')}
@@ -537,7 +535,7 @@ export const TaskList = ({
                     <td className="py-4 pr-4">
                       <div className="flex items-center gap-2">
                         <span className={statusBadge(task.status)}>{task.status?.replace('_', ' ')}</span>
-                        {(isPendingManagerTaskForEmployer(task) || isPendingEmployerTaskForEmployee(task)) && (
+                        {(isPendingManagerTaskForEmployer(task) || isActionableEmployerTaskForEmployee(task)) && (
                           <button
                             type="button"
                             onClick={() => setExpandedTaskId((prev) => (prev === task.id ? null : task.id))}
@@ -548,7 +546,7 @@ export const TaskList = ({
                         )}
                       </div>
                     </td>
-                    {(userRole === 'employee' || userRole === 'employer' || userRole === 'manager') && (
+                    {(userRole === 'employer' || userRole === 'manager') && (
                       <td className="py-4 min-w-[180px]">
                         {canUpdateStatus(task) ? (
                           <select
