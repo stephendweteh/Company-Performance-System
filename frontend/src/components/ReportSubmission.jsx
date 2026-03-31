@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from '../services/api';
+import { jsPDF } from 'jspdf';
 
 export const ReportSubmission = ({ selectedDate, userRole, currentUserId, onReportSubmitted }) => {
   const [formData, setFormData] = useState({
@@ -200,6 +201,67 @@ export const ReportSubmission = ({ selectedDate, userRole, currentUserId, onRepo
     return sorted;
   };
 
+  const exportReportsPDF = () => {
+    const doc = new jsPDF();
+    const visibleReports = shouldUseScopedReportView
+      ? filteredReports.filter((report) => ['submitted', 'reviewed'].includes(report.status))
+      : filteredReports;
+    let yPos = 10;
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    // Title
+    doc.setFontSize(16);
+    doc.text('Reports', pageWidth / 2, yPos, { align: 'center' });
+    yPos += 10;
+
+    // Date
+    doc.setFontSize(10);
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, yPos, { align: 'center' });
+    yPos += 8;
+
+    doc.setFontSize(11);
+    visibleReports.forEach((report, index) => {
+      if (yPos > pageHeight - 20) {
+        doc.addPage();
+        yPos = 10;
+      }
+
+      // Report title
+      doc.setFont(undefined, 'bold');
+      doc.text(`${index + 1}. Report - ${new Date(report.report_date).toLocaleDateString()}`, 10, yPos);
+      yPos += 6;
+
+      // Report details
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(9);
+      doc.text(`Status: ${report.status?.replace('_', ' ') || 'N/A'}`, 10, yPos);
+      yPos += 4;
+
+      // Content
+      if (report.content) {
+        const contentLines = doc.splitTextToSize(report.content, pageWidth - 20);
+        doc.text(contentLines, 10, yPos);
+        yPos += contentLines.length * 4 + 2;
+      }
+
+      // Reviewer comment
+      if (report.response_comment) {
+        doc.setFont(undefined, 'bold');
+        doc.text('Reviewer Comment:', 10, yPos);
+        yPos += 4;
+        doc.setFont(undefined, 'normal');
+        const commentLines = doc.splitTextToSize(report.response_comment, pageWidth - 20);
+        doc.text(commentLines, 10, yPos);
+        yPos += commentLines.length * 4 + 3;
+      }
+
+      yPos += 4;
+    });
+
+    doc.save(`reports-${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
   const exportReportsCSV = () => {
     const reportsToExport = sortReports(filterReports());
     if (reportsToExport.length === 0) {
@@ -286,6 +348,9 @@ export const ReportSubmission = ({ selectedDate, userRole, currentUserId, onRepo
               </select>
               <button className="ta-btn-primary" onClick={exportReportsCSV}>
                 Export CSV
+              </button>
+              <button className="ta-btn-primary" onClick={exportReportsPDF}>
+                Export PDF
               </button>
             </div>
           </div>

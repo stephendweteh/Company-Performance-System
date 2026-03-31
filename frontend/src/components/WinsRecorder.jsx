@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from '../services/api';
+import { jsPDF } from 'jspdf';
 
 export const WinsRecorder = ({ selectedDate, userRole, onWinRecorded }) => {
   const [formData, setFormData] = useState({
@@ -108,6 +109,72 @@ export const WinsRecorder = ({ selectedDate, userRole, onWinRecorded }) => {
       return 0;
     });
     return filtered;
+  };
+
+  const exportWinsPDF = () => {
+    const doc = new jsPDF();
+    const achievements = filterAndSortWins();
+    let yPos = 10;
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    // Title
+    doc.setFontSize(16);
+    doc.text('Achievements Report', pageWidth / 2, yPos, { align: 'center' });
+    yPos += 10;
+
+    // Date
+    doc.setFontSize(10);
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, yPos, { align: 'center' });
+    yPos += 8;
+
+    doc.setFontSize(11);
+    achievements.forEach((win, index) => {
+      if (yPos > pageHeight - 20) {
+        doc.addPage();
+        yPos = 10;
+      }
+
+      // Achievement title
+      doc.setFont(undefined, 'bold');
+      doc.text(`${index + 1}. ${win.title}`, 10, yPos);
+      yPos += 6;
+
+      // Achievement details
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(9);
+      doc.text(`Employee: ${win.employee?.name || 'N/A'} | Date: ${new Date(win.date).toLocaleDateString()} | Status: ${win.status?.replace('_', ' ') || 'N/A'}`, 10, yPos);
+      yPos += 4;
+
+      // Rating
+      if (typeof win.score === 'number') {
+        const stars = '★'.repeat(win.score) + '☆'.repeat(5 - win.score);
+        doc.text(`Rating: ${stars} (${win.score}/5)`, 10, yPos);
+        yPos += 4;
+      }
+
+      // Description
+      if (win.description) {
+        const descLines = doc.splitTextToSize(win.description, pageWidth - 20);
+        doc.text(descLines, 10, yPos);
+        yPos += descLines.length * 4 + 2;
+      }
+
+      // Reviewer comment
+      if (win.response_comment) {
+        doc.setFont(undefined, 'bold');
+        doc.text('Reviewer Comment:', 10, yPos);
+        yPos += 4;
+        doc.setFont(undefined, 'normal');
+        const commentLines = doc.splitTextToSize(win.response_comment, pageWidth - 20);
+        doc.text(commentLines, 10, yPos);
+        yPos += commentLines.length * 4 + 3;
+      }
+
+      yPos += 4;
+    });
+
+    doc.save(`achievements-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   const exportWinsCSV = () => {
@@ -244,6 +311,9 @@ export const WinsRecorder = ({ selectedDate, userRole, onWinRecorded }) => {
           <div className="flex gap-2">
             <button className="ta-btn-secondary" onClick={exportWinsCSV}>
               📥 Export CSV
+            </button>
+            <button className="ta-btn-secondary" onClick={exportWinsPDF}>
+              📄 Export PDF
             </button>
             <button className="ta-btn-secondary" onClick={fetchWins}>
               {loadingWins ? 'Loading...' : 'Refresh'}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../services/api';
+import { jsPDF } from 'jspdf';
 
 export const TaskList = ({
   selectedDate,
@@ -302,6 +303,54 @@ export const TaskList = ({
     window.URL.revokeObjectURL(url);
   };
 
+  const exportTasksPDF = () => {
+    const doc = new jsPDF();
+    const tasks = sortTasks(filterTasks());
+    let yPos = 10;
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    // Title
+    doc.setFontSize(16);
+    doc.text('Tasks Report', pageWidth / 2, yPos, { align: 'center' });
+    yPos += 10;
+
+    // Date
+    doc.setFontSize(10);
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, yPos, { align: 'center' });
+    yPos += 8;
+
+    doc.setFontSize(11);
+    tasks.forEach((task, index) => {
+      if (yPos > pageHeight - 20) {
+        doc.addPage();
+        yPos = 10;
+      }
+
+      // Task title
+      doc.setFont(undefined, 'bold');
+      doc.text(`${index + 1}. ${task.title}`, 10, yPos);
+      yPos += 6;
+
+      // Task details
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(9);
+      doc.text(`Priority: ${task.priority || 'N/A'} | Due: ${task.due_date ? new Date(task.due_date).toLocaleDateString() : 'N/A'} | Status: ${task.status || 'N/A'}`, 10, yPos);
+      yPos += 5;
+
+      // Description
+      if (task.description) {
+        const descLines = doc.splitTextToSize(task.description, pageWidth - 20);
+        doc.text(descLines, 10, yPos);
+        yPos += descLines.length * 4 + 2;
+      }
+
+      yPos += 4;
+    });
+
+    doc.save(`tasks-${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
   return (
     <div className="ta-card">
       <div className="ta-card-header flex items-center justify-between">
@@ -354,6 +403,9 @@ export const TaskList = ({
           </div>
           <button onClick={exportTasksCSV} className="ta-btn-secondary h-10">
             📥 Export CSV
+          </button>
+          <button onClick={exportTasksPDF} className="ta-btn-secondary h-10">
+            📄 Export PDF
           </button>
           {userRole === 'employee' && (
             <button
