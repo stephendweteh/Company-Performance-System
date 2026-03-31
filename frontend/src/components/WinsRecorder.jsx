@@ -94,11 +94,11 @@ export const WinsRecorder = ({ selectedDate, userRole, onWinRecorded }) => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
       <div className="ta-card">
         <div className="ta-card-header">
           <h2 className="font-semibold text-sidebar">
-            {canSubmit ? `Record Achievement - ${selectedDate?.toDateString() || 'No date selected'}` : 'Achievements Inbox'}
+            {canSubmit ? `Record Achievement` : 'Achievements Inbox'}
           </h2>
         </div>
         <div className="ta-card-body">
