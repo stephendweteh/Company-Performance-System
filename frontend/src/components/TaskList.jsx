@@ -103,7 +103,7 @@ export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0
     return map[p] || 'ta-badge-primary';
   };
   const priorityLabel = (p) => {
-    const map = { critical: 'A', high: 'B', medium: 'C', low: 'D' };
+    const map = { critical: 'C', high: 'H', medium: 'M', low: 'L' };
     return map[p] || p;
   };
   const statusBadge = (s) => {
