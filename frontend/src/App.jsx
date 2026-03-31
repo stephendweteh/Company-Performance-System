@@ -148,7 +148,7 @@ function App() {
 
           {/* ── Tasks ── */}
           {activeTab === 'tasks' && (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <div className={canAssignTasks ? 'grid grid-cols-1 xl:grid-cols-2 gap-6' : 'w-full'}>
               {canAssignTasks && (
                 <TaskCreator
                   userRole={user?.role}
