@@ -16,6 +16,7 @@ import './App.css';
 function App() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [activeTab, setActiveTab] = useState('calendar');
+  const [dateSelectionTargetTab, setDateSelectionTargetTab] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [taskRefreshKey, setTaskRefreshKey] = useState(0);
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
@@ -30,11 +31,18 @@ function App() {
     if (user) {
       setActiveTab('calendar');
       setSelectedDate(null);
+      setDateSelectionTargetTab(null);
     }
   }, [user?.id]);
 
   const handleCalendarDateSelect = (date) => {
     setSelectedDate(date);
+
+    if (dateSelectionTargetTab) {
+      setActiveTab(dateSelectionTargetTab);
+      setDateSelectionTargetTab(null);
+      return;
+    }
 
     if (['manager', 'employer'].includes(user?.role)) {
       setActiveTab('tasks');
@@ -44,7 +52,7 @@ function App() {
   if (!user) return <LoginPage />;
 
   /* ── date-required prompt ── */
-  const DatePrompt = ({ label }) => (
+  const DatePrompt = ({ label, targetTab }) => (
     <div className="ta-card">
       <div className="ta-card-body flex flex-col items-center justify-center py-16 text-center">
         <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
@@ -55,7 +63,10 @@ function App() {
         <h3 className="text-lg font-semibold text-sidebar mb-1">Select a Date First</h3>
         <p className="text-sm text-gray-500 max-w-xs">Click a date on the Calendar to {label}.</p>
         <button
-          onClick={() => setActiveTab('calendar')}
+          onClick={() => {
+            setDateSelectionTargetTab(targetTab || null);
+            setActiveTab('calendar');
+          }}
           className="ta-btn-primary mt-5"
         >
           Go to Calendar
@@ -145,7 +156,7 @@ function App() {
               ? <ReportSubmission selectedDate={selectedDate} userRole={user?.role} onReportSubmitted={() => setCalendarRefreshKey((prev) => prev + 1)} />
               : selectedDate
                 ? <ReportSubmission selectedDate={selectedDate} userRole={user?.role} onReportSubmitted={() => setCalendarRefreshKey((prev) => prev + 1)} />
-                : <DatePrompt label="submit a daily report" />
+                : <DatePrompt label="submit a daily report" targetTab="reports" />
           )}
 
           {/* ── Wins ── */}
@@ -154,7 +165,7 @@ function App() {
               ? <WinsRecorder selectedDate={selectedDate} userRole={user?.role} />
               : selectedDate
                 ? <WinsRecorder selectedDate={selectedDate} userRole={user?.role} onWinRecorded={() => {}} />
-                : <DatePrompt label="record an achievement" />
+                : <DatePrompt label="record an achievement" targetTab="wins" />
           )}
 
           {/* ── Companies ── */}
