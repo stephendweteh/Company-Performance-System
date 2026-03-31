@@ -213,26 +213,21 @@ export const WinsRecorder = ({ selectedDate, userRole, onWinRecorded }) => {
                 )}
 
                 {canRespondToWin(win) && (
-                  <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-4">
-                    <select
-                      className="ta-input"
-                      value={reviewByWin[win.id]?.status || ''}
-                      onChange={(e) => handleReviewField(win.id, 'status', e.target.value)}
-                    >
-                      <option value="">Set status</option>
-                      <option value="reviewed">Reviewed</option>
-                      <option value="approved">Approved</option>
-                      <option value="needs_revision">Needs revision</option>
-                    </select>
-                    <input
-                      type="number"
-                      min="1"
-                      max="5"
-                      className="ta-input"
-                      placeholder="Stars 1-5"
-                      value={reviewByWin[win.id]?.score ?? ''}
-                      onChange={(e) => handleReviewField(win.id, 'score', e.target.value ? Number(e.target.value) : null)}
-                    />
+                  <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-3">
+                    <div className="ta-input flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          className={`text-lg leading-none ${Number(reviewByWin[win.id]?.score || 0) >= star ? 'text-warning' : 'text-gray-300'}`}
+                          onClick={() => handleReviewField(win.id, 'score', star)}
+                          aria-label={`Set ${star} star rating`}
+                          title={`${star} star${star > 1 ? 's' : ''}`}
+                        >
+                          ★
+                        </button>
+                      ))}
+                    </div>
                     <input
                       className="ta-input"
                       placeholder="Response"
