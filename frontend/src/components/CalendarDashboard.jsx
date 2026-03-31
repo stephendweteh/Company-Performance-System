@@ -41,13 +41,8 @@ export const CalendarDashboard = ({ onDateSelect }) => {
         const daySet = new Set();
         (response.data || []).forEach((task) => {
           const taskStart = parseDate(task.start_date);
-          const taskEnd = parseDate(task.due_date);
-
           if (taskStart && taskStart.getMonth() === currentDate.getMonth() && taskStart.getFullYear() === currentDate.getFullYear()) {
             daySet.add(taskStart.getDate());
-          }
-          if (taskEnd && taskEnd.getMonth() === currentDate.getMonth() && taskEnd.getFullYear() === currentDate.getFullYear()) {
-            daySet.add(taskEnd.getDate());
           }
         });
         setTaskDays(Array.from(daySet));
