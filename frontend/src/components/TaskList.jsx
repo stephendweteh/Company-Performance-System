@@ -240,7 +240,9 @@ export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0
   return (
     <div className="ta-card">
       <div className="ta-card-header flex items-center justify-between">
-        <h2 className="font-semibold text-sidebar">Tasks — {selectedDate?.toDateString()}</h2>
+        <h2 className="font-semibold text-sidebar">
+          {selectedDate ? `Tasks — ${selectedDate.toDateString()}` : 'Tasks'}
+        </h2>
         <span className="text-sm text-gray-400">{tasks.length} task{tasks.length !== 1 ? 's' : ''}</span>
       </div>
       <div className="ta-card-body">
@@ -291,7 +293,9 @@ export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0
                   <th className="pb-3 text-left font-semibold text-gray-500">Priority</th>
                   <th className="pb-3 text-left font-semibold text-gray-500">Due</th>
                   <th className="pb-3 text-left font-semibold text-gray-500">Status</th>
-                  {(userRole === 'employee' || userRole === 'employer' || userRole === 'manager') && <th className="pb-3" />}
+                  {(userRole === 'employee' || userRole === 'employer' || userRole === 'manager') && (
+                    <th className="pb-3 text-left font-semibold text-gray-500">Update Status</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-stroke">
@@ -422,19 +426,19 @@ export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0
                       </div>
                     </td>
                     {(userRole === 'employee' || userRole === 'employer' || userRole === 'manager') && (
-                      <td className="py-4">
+                      <td className="py-4 min-w-[180px]">
                         {canUpdateStatus(task) ? (
                           <select
                             value={task.status}
                             onChange={(e) => updateTaskStatus(task.id, e.target.value)}
-                            className="ta-input !py-1 !text-xs"
+                            className="ta-input min-w-[170px] bg-white !border-primary !py-2 !pr-9 !text-sm !font-semibold text-sidebar shadow-sm"
                           >
                             {statusOptions(task).map((option) => (
                               <option key={option.value} value={option.value}>{option.label}</option>
                             ))}
                           </select>
                         ) : (
-                          <span className="text-xs text-gray-400">Read only</span>
+                          <span className="text-sm font-medium text-gray-400">Read only</span>
                         )}
                       </td>
                     )}
