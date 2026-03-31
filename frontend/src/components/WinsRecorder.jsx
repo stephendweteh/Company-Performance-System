@@ -14,7 +14,16 @@ export const WinsRecorder = ({ selectedDate, userRole, onWinRecorded }) => {
   const [reviewByWin, setReviewByWin] = useState({});
 
   const canSubmit = ['employee', 'employer'].includes(userRole);
-  const canRespond = ['manager', 'super_admin', 'employer'].includes(userRole);
+  const renderStars = (score) => {
+    const safeScore = Math.max(0, Math.min(5, Number(score) || 0));
+    return '★'.repeat(safeScore) + '☆'.repeat(5 - safeScore);
+  };
+  const canRespondToWin = (win) => {
+    if (userRole === 'super_admin') return true;
+    if (userRole === 'manager') return win.employee?.role === 'employer';
+    if (userRole === 'employer') return win.employee?.role === 'employee';
+    return false;
+  };
 
   const fetchWins = async () => {
     setLoadingWins(true);
@@ -53,7 +62,7 @@ export const WinsRecorder = ({ selectedDate, userRole, onWinRecorded }) => {
         { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
       );
 
-      setMessage('Win recorded successfully!');
+      setMessage(userRole === 'employer' ? 'Achievement submitted to manager successfully!' : 'Achievement submitted successfully!');
       setFormData({ title: '', description: '', task_id: '' });
       onWinRecorded && onWinRecorded();
       fetchWins();
@@ -114,6 +123,11 @@ export const WinsRecorder = ({ selectedDate, userRole, onWinRecorded }) => {
 
           {canSubmit && selectedDate && (
             <form onSubmit={handleSubmit} className="space-y-5">
+              {userRole === 'employer' && (
+                <div className="rounded border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
+                  This achievement will be submitted to the manager for review and a 5-star score.
+                </div>
+              )}
               <div>
                 <label className="ta-label">Achievement Title</label>
                 <input
@@ -181,8 +195,15 @@ export const WinsRecorder = ({ selectedDate, userRole, onWinRecorded }) => {
                 <p className="mt-1 text-xs text-gray-500">
                   By: {win.employee?.name} | Date: {new Date(win.date).toLocaleDateString()}
                 </p>
+                {win.reviewer?.name && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Reviewer: {win.reviewer.name}
+                  </p>
+                )}
                 {typeof win.score === 'number' && (
-                  <p className="mt-1 text-xs text-warning">Score: {win.score}/10</p>
+                  <p className="mt-1 text-sm font-medium text-warning" title={`${win.score}/5 stars`}>
+                    Rating: {renderStars(win.score)}
+                  </p>
                 )}
                 <p className="mt-3 text-sm text-gray-700">{win.description}</p>
                 {win.response_comment && (
@@ -191,7 +212,7 @@ export const WinsRecorder = ({ selectedDate, userRole, onWinRecorded }) => {
                   </div>
                 )}
 
-                {canRespond && (
+                {canRespondToWin(win) && (
                   <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-4">
                     <select
                       className="ta-input"
@@ -206,9 +227,9 @@ export const WinsRecorder = ({ selectedDate, userRole, onWinRecorded }) => {
                     <input
                       type="number"
                       min="1"
-                      max="10"
+                      max="5"
                       className="ta-input"
-                      placeholder="Score /10"
+                      placeholder="Stars 1-5"
                       value={reviewByWin[win.id]?.score ?? ''}
                       onChange={(e) => handleReviewField(win.id, 'score', e.target.value ? Number(e.target.value) : null)}
                     />

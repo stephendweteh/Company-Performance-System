@@ -18,9 +18,12 @@ class WinController extends Controller
         if ($currentUser->role === 'employee') {
             $query->where('employee_id', $currentUser->id);
         } elseif ($currentUser->role === 'employer') {
-            $query->whereHas('employee', function ($builder) use ($currentUser) {
-                $builder->where('role', 'employee')
-                    ->where('company_id', $currentUser->company_id);
+            $query->where(function ($builder) use ($currentUser) {
+                $builder->where('employee_id', $currentUser->id)
+                    ->orWhereHas('employee', function ($employeeBuilder) use ($currentUser) {
+                        $employeeBuilder->where('role', 'employee')
+                            ->where('company_id', $currentUser->company_id);
+                    });
             });
         } elseif ($currentUser->role === 'manager') {
             $query->whereHas('employee', function ($builder) {
@@ -97,7 +100,7 @@ class WinController extends Controller
 
         $validated = $request->validate([
             'status' => 'nullable|in:reviewed,approved,needs_revision',
-            'score' => 'nullable|integer|min:1|max:10',
+            'score' => 'nullable|integer|min:1|max:5',
             'response_comment' => 'nullable|string|max:2000',
         ]);
 
