@@ -117,6 +117,14 @@ class TaskController extends Controller
     {
         $user = $request->user();
         $task->loadMissing('creator', 'assignee');
+        $isManagerReviewFlowTask = $task->creator
+            && $task->creator->role === 'manager'
+            && $task->assignee
+            && $task->assignee->role === 'employer';
+        $isEmployerReviewFlowTask = $task->creator
+            && $task->creator->role === 'employer'
+            && $task->assignee
+            && $task->assignee->role === 'employee';
 
         if ($user && $user->role === 'employee') {
             abort_unless($task->assigned_to === $user->id, 403, 'Forbidden');
@@ -127,6 +135,17 @@ class TaskController extends Controller
                 'attachments' => 'nullable|array|max:5',
                 'attachments.*' => 'file|max:10240',
             ]);
+
+            if (array_key_exists('status', $validated) && $isEmployerReviewFlowTask) {
+                if ($validated['status'] === Task::STATUS_COMPLETED) {
+                    return response()->json(['message' => 'Employee cannot complete this task directly. Submit it to the employer for review.'], 422);
+                }
+
+                $allowedEmployeeStatuses = [Task::STATUS_PENDING, Task::STATUS_IN_PROGRESS, Task::STATUS_PENDING_REVIEW];
+                if (!in_array($validated['status'], $allowedEmployeeStatuses, true)) {
+                    return response()->json(['message' => 'Employee can only update this task to pending, in progress, or pending review.'], 422);
+                }
+            }
         } else {
             abort_unless($this->canAssign($user), 403, 'Forbidden');
 
@@ -142,10 +161,7 @@ class TaskController extends Controller
             ]);
 
             if (array_key_exists('status', $validated)
-                && $task->creator
-                && $task->creator->role === 'manager'
-                && $task->assignee
-                && $task->assignee->role === 'employer'
+                && $isManagerReviewFlowTask
             ) {
                 if ($user->role === 'employer' && $task->assigned_to === $user->id && $validated['status'] === Task::STATUS_COMPLETED) {
                     return response()->json(['message' => 'Employer cannot complete this task directly. Submit it for review.'], 422);
@@ -159,6 +175,19 @@ class TaskController extends Controller
                     $allowedEmployerStatuses = [Task::STATUS_PENDING, Task::STATUS_IN_PROGRESS, Task::STATUS_PENDING_REVIEW];
                     if (!in_array($validated['status'], $allowedEmployerStatuses, true)) {
                         return response()->json(['message' => 'Employer can only update this task to pending, in progress, or pending review.'], 422);
+                    }
+                }
+            }
+
+            if (array_key_exists('status', $validated) && $isEmployerReviewFlowTask) {
+                if ($validated['status'] === Task::STATUS_COMPLETED && !($user->role === 'employer' && $task->created_by === $user->id)) {
+                    return response()->json(['message' => 'Only the assigning employer can complete and review this task.'], 403);
+                }
+
+                if ($user->role === 'employer' && $task->created_by === $user->id) {
+                    $allowedEmployerStatuses = [Task::STATUS_PENDING, Task::STATUS_IN_PROGRESS, Task::STATUS_PENDING_REVIEW, Task::STATUS_COMPLETED];
+                    if (!in_array($validated['status'], $allowedEmployerStatuses, true)) {
+                        return response()->json(['message' => 'Employer can only update this task to pending, in progress, pending review, or completed.'], 422);
                     }
                 }
             }

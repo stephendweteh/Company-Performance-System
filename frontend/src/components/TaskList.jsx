@@ -120,12 +120,20 @@ export const TaskList = ({
   };
 
   const canUpdateStatus = (task) => {
-    if (userRole === 'employee') return true;
-
     const isManagerReviewFlowTask = task.creator?.role === 'manager' && task.assignee?.role === 'employer';
+    const isEmployerReviewFlowTask = task.creator?.role === 'employer' && task.assignee?.role === 'employee';
+
+    if (userRole === 'employee') {
+      if (isEmployerReviewFlowTask) {
+        return task.assigned_to === currentUserId;
+      }
+
+      return true;
+    }
 
     if (userRole === 'employer') {
-      return isManagerReviewFlowTask && task.assigned_to === currentUserId;
+      return (isManagerReviewFlowTask && task.assigned_to === currentUserId)
+        || (isEmployerReviewFlowTask && task.created_by === currentUserId);
     }
 
     if (userRole === 'manager') {
@@ -137,6 +145,14 @@ export const TaskList = ({
 
   const statusOptions = (task) => {
     if (userRole === 'employee') {
+      if (task.creator?.role === 'employer' && task.assignee?.role === 'employee') {
+        return [
+          { value: 'pending', label: 'Pending' },
+          { value: 'in_progress', label: 'In Progress' },
+          { value: 'pending_review', label: 'Pending Review' },
+        ];
+      }
+
       return [
         { value: 'pending', label: 'Pending' },
         { value: 'in_progress', label: 'In Progress' },
@@ -145,6 +161,15 @@ export const TaskList = ({
     }
 
     if (userRole === 'employer') {
+      if (task.creator?.role === 'employer' && task.assignee?.role === 'employee') {
+        return [
+          { value: 'pending', label: 'Pending' },
+          { value: 'in_progress', label: 'In Progress' },
+          { value: 'pending_review', label: 'Pending Review' },
+          { value: 'completed', label: 'Completed (Reviewed)' },
+        ];
+      }
+
       return [
         { value: 'pending', label: 'Pending' },
         { value: 'in_progress', label: 'In Progress' },
@@ -171,6 +196,13 @@ export const TaskList = ({
     && task.status === 'pending'
   );
 
+  const isPendingEmployerTaskForEmployee = (task) => (
+    userRole === 'employee'
+    && task.assigned_to === currentUserId
+    && task.creator?.role === 'employer'
+    && task.status === 'pending'
+  );
+
   const extractSubmissionNotes = (description) => {
     if (!description) return null;
     const match = description.match(/Submission Note \([^)]+\)\n([\s\S]*?)(?=\n*$)/);
@@ -186,6 +218,14 @@ export const TaskList = ({
     userRole === 'manager'
     && task.assignee?.role === 'employer'
     && task.creator?.role === 'manager'
+    && (task.status === 'in_progress' || task.status === 'pending_review')
+  );
+
+  const isEmployeeTaskWithSubmission = (task) => (
+    userRole === 'employer'
+    && task.assignee?.role === 'employee'
+    && task.creator?.role === 'employer'
+    && task.created_by === currentUserId
     && (task.status === 'in_progress' || task.status === 'pending_review')
   );
 
@@ -342,7 +382,7 @@ export const TaskList = ({
                           {getOriginalDescription(task.description) && (
                             <p className="mt-0.5 text-xs text-gray-400 line-clamp-2">{getOriginalDescription(task.description)}</p>
                           )}
-                          {isEmployerTaskWithSubmission(task) && extractSubmissionNotes(task.description) && (
+                          {(isEmployerTaskWithSubmission(task) || isEmployeeTaskWithSubmission(task)) && extractSubmissionNotes(task.description) && (
                             <div className="mt-2 rounded bg-blue-50 border border-blue-100 p-2">
                               <p className="text-xs font-semibold text-blue-900">📋 {task.assignee?.name}:</p>
                               <p className="mt-1 text-xs text-blue-800 line-clamp-3">{extractSubmissionNotes(task.description)}</p>
@@ -374,7 +414,7 @@ export const TaskList = ({
                           ))}
                         </div>
                       )}
-                      {expandedTaskId === task.id && isEmployerTaskWithSubmission(task) && (
+                      {expandedTaskId === task.id && (isEmployerTaskWithSubmission(task) || isEmployeeTaskWithSubmission(task)) && (
                         <div className="mt-3 space-y-2 rounded border border-blue-200 bg-blue-50 p-3">
                           {extractSubmissionNotes(task.description) && (
                             <div>
@@ -433,6 +473,55 @@ export const TaskList = ({
                         </div>
                         </div>
                       )}
+                      {expandedTaskId === task.id && isPendingEmployerTaskForEmployee(task) && (
+                        <div className="mt-3 space-y-3 rounded border border-stroke p-3">
+                          {taskError && (
+                            <p className="text-xs text-danger">{taskError}</p>
+                          )}
+                          <div>
+                            <label className="ta-label !mb-1">Task Update / Notes</label>
+                            <textarea
+                              value={taskTexts[task.id] || ''}
+                              onChange={(e) => handleTaskTextChange(task.id, e.target.value)}
+                              className="ta-input !py-1.5 !text-xs"
+                              rows={3}
+                              placeholder="Write what you have done or any blocker for the employer"
+                            />
+                          </div>
+                          <div>
+                            <label className="ta-label !mb-1">Attach Work Files (optional)</label>
+                            <input
+                              type="file"
+                              multiple
+                              onChange={(e) => handleTaskFileChange(task.id, e.target.files)}
+                              className="ta-input !py-1.5 !text-xs"
+                            />
+                            {(taskFiles[task.id] || []).length > 0 && (
+                              <p className="mt-1 text-xs text-gray-500">
+                                {(taskFiles[task.id] || []).length} file(s) selected
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => submitTaskWithFiles(task.id, 'in_progress')}
+                              disabled={respondingTaskId === task.id}
+                              className="ta-btn-secondary !px-3 !py-1 !text-xs disabled:opacity-60"
+                            >
+                              Start Task
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => submitTaskWithFiles(task.id, 'pending_review')}
+                              disabled={respondingTaskId === task.id}
+                              className="ta-btn-primary !px-3 !py-1 !text-xs disabled:opacity-60"
+                            >
+                              Send to Employer
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </td>
                     <td className="py-4 pr-4">
                       <span
@@ -448,7 +537,7 @@ export const TaskList = ({
                     <td className="py-4 pr-4">
                       <div className="flex items-center gap-2">
                         <span className={statusBadge(task.status)}>{task.status?.replace('_', ' ')}</span>
-                        {isPendingManagerTaskForEmployer(task) && (
+                        {(isPendingManagerTaskForEmployer(task) || isPendingEmployerTaskForEmployee(task)) && (
                           <button
                             type="button"
                             onClick={() => setExpandedTaskId((prev) => (prev === task.id ? null : task.id))}
