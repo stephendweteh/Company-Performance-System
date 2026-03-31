@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import Sidebar from './components/layout/Sidebar';
 import Header from './components/layout/Header';
 import CalendarDashboard from './components/CalendarDashboard';
@@ -23,6 +23,14 @@ function App() {
   const canAccessCompanies = ['employer', 'manager', 'super_admin'].includes(user?.role);
   const canManageCompanies = ['employer', 'super_admin'].includes(user?.role);
   const isSuperAdmin = user?.role === 'super_admin';
+
+  // Reset to calendar whenever a user signs in
+  useEffect(() => {
+    if (user) {
+      setActiveTab('calendar');
+      setSelectedDate(null);
+    }
+  }, [user?.id]);
 
   const handleCalendarDateSelect = (date) => {
     setSelectedDate(date);
