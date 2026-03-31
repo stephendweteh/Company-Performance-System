@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from '../services/api';
 
-export const CalendarDashboard = ({ onDateSelect }) => {
+export const CalendarDashboard = ({ onDateSelect, refreshKey = 0 }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(null);
   const [taskDays, setTaskDays] = useState([]);
@@ -40,6 +40,7 @@ export const CalendarDashboard = ({ onDateSelect }) => {
 
         const daySet = new Set();
         (response.data || []).forEach((task) => {
+          if (task.status === 'completed') return; // completed tasks don't need marking
           const taskStart = parseDate(task.start_date);
           if (taskStart && taskStart.getMonth() === currentDate.getMonth() && taskStart.getFullYear() === currentDate.getFullYear()) {
             daySet.add(taskStart.getDate());
@@ -55,6 +56,7 @@ export const CalendarDashboard = ({ onDateSelect }) => {
         const response = await axios.get('/api/reports', { headers });
         const daySet = new Set();
         (response.data || []).forEach((report) => {
+          if (report.status === 'approved') return; // approved reports are done
           const d = parseDate(report.report_date);
           if (d && d.getMonth() === currentDate.getMonth() && d.getFullYear() === currentDate.getFullYear()) {
             daySet.add(d.getDate());
@@ -67,7 +69,7 @@ export const CalendarDashboard = ({ onDateSelect }) => {
     };
 
     fetchCalendarData();
-  }, [currentDate]);
+  }, [currentDate, refreshKey]);
 
   const handlePrevMonth = () =>
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));

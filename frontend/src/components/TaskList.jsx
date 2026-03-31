@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../services/api';
 
-export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0 }) => {
+export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0, onStatusChange }) => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [expandedTaskId, setExpandedTaskId] = useState(null);
@@ -40,6 +40,7 @@ export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0
         { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
       );
       fetchTasks();
+      onStatusChange && onStatusChange();
     } catch (error) {
       console.error('Error updating task:', error);
     }
@@ -86,6 +87,7 @@ export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0
       setTaskFiles((prev) => ({ ...prev, [taskId]: [] }));
       setTaskTexts((prev) => ({ ...prev, [taskId]: '' }));
       fetchTasks();
+      onStatusChange && onStatusChange();
     } catch (error) {
       const err = error.response?.data?.errors
         ? Object.values(error.response.data.errors).flat().join(' ')

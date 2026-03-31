@@ -100,6 +100,7 @@ export const ReportSubmission = ({ selectedDate, userRole, onReportSubmitted }) 
       );
       setMessage('Report response saved.');
       fetchReports();
+      onReportSubmitted && onReportSubmitted();
     } catch (error) {
       setMessage(error.response?.data?.message || 'Failed to respond to report');
     }

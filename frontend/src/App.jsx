@@ -18,6 +18,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('calendar');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [taskRefreshKey, setTaskRefreshKey] = useState(0);
+  const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
   const { user, refreshUser } = useContext(AuthContext);
   const canAssignTasks = ['employer', 'manager', 'super_admin'].includes(user?.role);
   const canAccessCompanies = ['employer', 'manager', 'super_admin'].includes(user?.role);
@@ -88,7 +89,7 @@ function App() {
           {activeTab === 'calendar' && (
             <div className="flex flex-col gap-6 xl:flex-row">
               <div className="flex-1 min-w-0">
-                <CalendarDashboard onDateSelect={handleCalendarDateSelect} />
+                <CalendarDashboard onDateSelect={handleCalendarDateSelect} refreshKey={calendarRefreshKey} />
               </div>
               {selectedDate && (
                 <div className="xl:w-72">
@@ -131,19 +132,19 @@ function App() {
                 <TaskCreator
                   userRole={user?.role}
                   selectedDate={selectedDate}
-                  onTaskCreated={() => setTaskRefreshKey((prev) => prev + 1)}
+                  onTaskCreated={() => { setTaskRefreshKey((prev) => prev + 1); setCalendarRefreshKey((prev) => prev + 1); }}
                 />
               )}
-              <TaskList selectedDate={selectedDate} userRole={user?.role} currentUserId={user?.id} refreshKey={taskRefreshKey} />
+              <TaskList selectedDate={selectedDate} userRole={user?.role} currentUserId={user?.id} refreshKey={taskRefreshKey} onStatusChange={() => setCalendarRefreshKey((prev) => prev + 1)} />
             </div>
           )}
 
           {/* ── Reports ── */}
           {activeTab === 'reports' && (
             ['manager', 'super_admin'].includes(user?.role)
-              ? <ReportSubmission selectedDate={selectedDate} userRole={user?.role} />
+              ? <ReportSubmission selectedDate={selectedDate} userRole={user?.role} onReportSubmitted={() => setCalendarRefreshKey((prev) => prev + 1)} />
               : selectedDate
-                ? <ReportSubmission selectedDate={selectedDate} userRole={user?.role} onReportSubmitted={() => {}} />
+                ? <ReportSubmission selectedDate={selectedDate} userRole={user?.role} onReportSubmitted={() => setCalendarRefreshKey((prev) => prev + 1)} />
                 : <DatePrompt label="submit a daily report" />
           )}
 
