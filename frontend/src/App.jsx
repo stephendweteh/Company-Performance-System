@@ -8,10 +8,19 @@ import ReportSubmission from './components/ReportSubmission';
 import WinsRecorder from './components/WinsRecorder';
 import Notifications from './components/Notifications';
 import CompanyManagement from './components/CompanyManagement';
+import TeamsManagement from './components/TeamsManagement';
+import EmployerGroupsManagement from './components/EmployerGroupsManagement';
 import SuperAdminDashboard from './components/SuperAdminDashboard';
 import ProfileSettings from './components/ProfileSettings';
 import AuthContext from './context/AuthContext';
+import axios from './services/api';
 import './App.css';
+
+const defaultBranding = {
+  app_name: 'PerformTrack',
+  app_logo_url: null,
+  has_app_logo: false,
+};
 
 function App() {
   const [selectedDate, setSelectedDate] = useState(null);
@@ -21,6 +30,7 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [taskRefreshKey, setTaskRefreshKey] = useState(0);
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
+  const [branding, setBranding] = useState(defaultBranding);
   const { user, refreshUser } = useContext(AuthContext);
   const canAssignTasks = ['employer', 'manager', 'super_admin'].includes(user?.role);
   const canAccessCompanies = ['employer', 'manager', 'super_admin'].includes(user?.role);
@@ -36,6 +46,22 @@ function App() {
       setEmployeePendingFocus(false);
     }
   }, [user?.id]);
+
+  useEffect(() => {
+    fetchBranding();
+  }, []);
+
+  const fetchBranding = async () => {
+    try {
+      const response = await axios.get('/api/public/branding');
+      setBranding({
+        ...defaultBranding,
+        ...(response.data || {}),
+      });
+    } catch (error) {
+      setBranding(defaultBranding);
+    }
+  };
 
   const handleCalendarDateSelect = (date) => {
     setSelectedDate(date);
@@ -59,7 +85,7 @@ function App() {
     }
   };
 
-  if (!user) return <LoginPage />;
+  if (!user) return <LoginPage branding={branding} />;
 
   /* ── date-required prompt ── */
   const DatePrompt = ({ label, targetTab }) => (
@@ -93,6 +119,7 @@ function App() {
         setActiveTab={setActiveTab}
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
+        branding={branding}
       />
 
       {/* Content area */}
@@ -102,6 +129,7 @@ function App() {
           setSidebarOpen={setSidebarOpen}
           activeTab={activeTab}
           setActiveTab={setActiveTab}
+          branding={branding}
         />
 
         <main className="mx-auto w-full max-w-screen-2xl px-4 py-6 md:px-6 2xl:px-10">
@@ -189,8 +217,14 @@ function App() {
           {/* ── Companies ── */}
           {activeTab === 'companies' && canAccessCompanies && <CompanyManagement canManage={canManageCompanies} />}
 
+          {/* ── Teams ── */}
+          {activeTab === 'teams' && canAccessCompanies && <TeamsManagement />}
+
+          {/* ── Employer Groups ── */}
+          {activeTab === 'employer_groups' && user?.role === 'manager' && <EmployerGroupsManagement />}
+
           {/* ── Admin ── */}
-          {activeTab === 'admin' && isSuperAdmin && <SuperAdminDashboard />}
+          {activeTab === 'admin' && isSuperAdmin && <SuperAdminDashboard onBrandingUpdated={fetchBranding} />}
 
           {/* ── Notifications ── */}
           {activeTab === 'notifications' && <Notifications />}
@@ -207,7 +241,7 @@ function App() {
 /* ════════════════════════════════════════════════════════════
    LOGIN / REGISTER PAGE  — TailAdmin split-screen auth style
 ════════════════════════════════════════════════════════════ */
-function LoginPage() {
+function LoginPage({ branding }) {
   const [mode, setMode] = useState('login');
   const [formData, setFormData] = useState({
     name: '', email: '', phone: '', password: '', password_confirmation: '', company_id: '', team_id: '',
@@ -316,16 +350,19 @@ function LoginPage() {
     <div className="flex min-h-screen">
       {/* Left panel */}
       <div className="hidden lg:flex lg:w-1/2 flex-col items-center justify-center bg-sidebar px-12">
-        <div className="flex items-center gap-3 mb-10">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary">
-            <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
+        <div className="mb-10">
+          <div className="flex h-[150px] w-[150px] items-center justify-center overflow-hidden rounded-2xl bg-white/95 p-3 shadow-sm">
+            {branding?.app_logo_url ? (
+              <img src={branding.app_logo_url} alt={`${branding.app_name || 'PerformTrack'} logo`} className="h-full w-full object-contain" />
+            ) : (
+              <svg className="h-20 w-20 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            )}
           </div>
-          <span className="text-white text-2xl font-bold">PerformTrack</span>
         </div>
         <h2 className="text-3xl font-bold text-white text-center leading-snug mb-4">
-          Employee Performance<br />Tracker
+          Company Performance<br />System
         </h2>
         <p className="text-bodydark text-center max-w-sm text-sm leading-relaxed">
           Manage tasks, submit daily reports, track wins, and monitor team performance — all in one place.
@@ -349,13 +386,16 @@ function LoginPage() {
       <div className="flex flex-1 flex-col items-center justify-center bg-white px-6 py-12">
         <div className="w-full max-w-md">
           {/* Mobile logo */}
-          <div className="flex lg:hidden items-center gap-2 mb-8 justify-center">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary">
-              <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
+          <div className="flex lg:hidden items-center mb-8 justify-center">
+            <div className="flex h-[150px] w-[150px] items-center justify-center overflow-hidden rounded-2xl bg-white p-3 shadow-sm ring-1 ring-stroke">
+              {branding?.app_logo_url ? (
+                <img src={branding.app_logo_url} alt={`${branding.app_name || 'PerformTrack'} logo`} className="h-full w-full object-contain" />
+              ) : (
+                <svg className="h-20 w-20 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              )}
             </div>
-            <span className="text-sidebar text-xl font-bold">PerformTrack</span>
           </div>
 
           <h1 className="text-2xl font-bold text-sidebar mb-1">

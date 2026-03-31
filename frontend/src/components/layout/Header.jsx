@@ -1,5 +1,6 @@
 import React, { useContext, useState } from 'react';
 import { AuthContext } from '../../context/AuthContext';
+import AppLogo from './AppLogo';
 
 const tabLabels = {
   calendar:      'Dashboard',
@@ -12,7 +13,7 @@ const tabLabels = {
   admin:         'Admin Panel',
 };
 
-const Header = ({ sidebarOpen, setSidebarOpen, activeTab, setActiveTab }) => {
+const Header = ({ sidebarOpen, setSidebarOpen, activeTab, setActiveTab, branding }) => {
   const { user, logout } = useContext(AuthContext);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
@@ -32,7 +33,14 @@ const Header = ({ sidebarOpen, setSidebarOpen, activeTab, setActiveTab }) => {
 
         {/* Breadcrumb */}
         <div className="hidden sm:flex items-center gap-2 text-sm text-gray-500">
-          <span>PerformTrack</span>
+          <AppLogo
+            branding={branding}
+            containerClassName="flex items-center gap-2"
+            textClassName="font-medium text-gray-500"
+            fallbackMarkClassName="flex h-7 w-7 items-center justify-center rounded-full bg-primary"
+            imageWrapperClassName="flex h-7 w-7 items-center justify-center overflow-hidden rounded-md bg-white p-1 ring-1 ring-stroke"
+            imageClassName="h-full w-full object-contain"
+          />
           <span>/</span>
           <span className="font-semibold text-sidebar">{tabLabels[activeTab] || 'Dashboard'}</span>
         </div>

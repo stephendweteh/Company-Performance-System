@@ -1,0 +1,376 @@
+# understanding.mdc
+
+## Project Name
+
+Employee Performance Wins, Tasks & Reports Tracker
+
+## Project Overview
+
+The Employee Performance Wins, Tasks & Reports Tracker is a productivity and performance monitoring system that allows employers and employees to track work activities through tasks, daily reports, and achievements (wins).
+
+The system begins with a **calendar-based interface** where both employees and employers can select a date to view or manage tasks, submit reports, and track performance.
+
+Employers can create companies or teams and assign employees to them. Tasks created by employers remain **pending** until employees complete them. Employees also submit reports and record daily achievements.
+
+---
+
+# Core Objectives
+
+1. Allow employers to assign and monitor tasks.
+2. Allow employees to submit reports of daily work.
+3. Track employee performance and wins.
+4. Provide a date-based workflow using a calendar.
+5. Support multiple companies or teams under one employer.
+
+---
+
+# System Roles
+
+## 1. Employer (Admin)
+
+Employer has full control of the system.
+
+Capabilities:
+
+* Create Companies or Teams
+* Invite or register employees
+* Assign tasks
+* Review employee reports
+* Approve or comment on reports
+* Monitor employee progress
+* View employee wins and productivity analytics
+
+---
+
+## 2. Employee
+
+Employees interact mainly with their assigned tasks and daily reports.
+
+Capabilities:
+
+* View assigned tasks
+* Mark tasks as completed
+* Submit daily reports
+* Record achievements (wins)
+* View tasks and reports by calendar date
+
+---
+
+# Core System Interface
+
+## Calendar Dashboard (Main Interface)
+
+The first interface users see after login.
+
+Features:
+
+* Monthly calendar view
+* Users can click any date
+* Clicking a date opens the **Task & Report Page**
+
+Purpose:
+To organize work activities by date.
+
+Example Flow:
+
+User Login → Calendar Dashboard → Select Date → Task & Report Page
+
+---
+
+# Task & Report Page
+
+When a date is selected from the calendar, the system opens a page containing:
+
+### 1. Tasks Section
+
+Displays tasks assigned by the employer.
+
+Fields:
+
+* Task Title
+* Task Description
+* Assigned By
+* Assigned Date
+* Status
+
+Task Status Types:
+
+* Pending
+* In Progress
+* Completed
+
+Rules:
+
+* Tasks created by employer remain **Pending**
+* Task remains pending until employee marks it **Completed**
+* Unfinished tasks **remain visible and accumulate until completed**
+
+---
+
+### 2. Report Submission
+
+Employees must submit reports for selected dates.
+
+Report Fields:
+
+* Report Title
+* Work Done
+* Challenges Faced
+* Achievements (Wins)
+* Attachments (optional)
+* Submission Time
+
+Reports are submitted to the employer for review.
+
+Employer Actions:
+
+* Approve Report
+* Comment on Report
+* Request Revision
+
+---
+
+### 3. Wins / Achievements Section
+
+Employees can record daily achievements.
+
+Examples:
+
+* Completed important task
+* Reached milestone
+* Solved major issue
+
+Fields:
+
+* Win Title
+* Description
+* Date
+* Related Task (optional)
+
+Purpose:
+To highlight productivity and employee impact.
+
+---
+
+# Company / Team Management
+
+Employers can create organizational structures.
+
+Structure:
+
+Employer
+└── Company
+└── Teams
+└── Employees
+
+Employer Capabilities:
+
+* Create Company
+* Create Teams
+* Assign Employees to Teams
+* Move employees between teams
+
+---
+
+# Task Assignment System
+
+Employer creates tasks.
+
+Task Fields:
+
+* Task Title
+* Description
+* Assigned Employee
+* Assigned Team (optional)
+* Start Date
+* Due Date
+* Priority Level
+
+Priority Levels:
+
+* Low
+* Medium
+* High
+* Critical
+
+Rules:
+
+* Tasks remain **Pending** until employee completes them
+* Overdue tasks are highlighted
+* Tasks accumulate until completed
+
+---
+
+# Reports Management
+
+Employees submit reports tied to a specific date.
+
+Report Status:
+
+* Submitted
+* Reviewed
+* Approved
+* Needs Revision
+
+Employer Dashboard shows:
+
+* Reports awaiting review
+* Employee report history
+* Productivity insights
+
+---
+
+# Notifications
+
+System sends notifications for:
+
+Employees:
+
+* New task assigned
+* Task deadline approaching
+* Employer comments on report
+
+Employers:
+
+* New report submitted
+* Task completed
+* Employee win recorded
+
+Notification Channels:
+
+* Email
+* In-app notifications
+
+---
+
+# Performance Tracking
+
+System calculates performance indicators.
+
+Metrics include:
+
+* Tasks completed
+* Pending tasks
+* Daily reports submitted
+* Wins recorded
+* Completion rate
+
+Employers can view:
+
+* Employee performance summary
+* Team productivity
+* Company-wide statistics
+
+---
+
+# Suggested Technology Stack
+
+Frontend:
+
+* React
+* Tailwind CSS
+* Calendar UI component
+
+Backend:
+
+* Laravel PHP 8.4
+
+Database:
+
+* MySQL
+
+Authentication:
+
+* Laravel Authentication System
+
+Notifications:
+
+* Email
+* Optional SMS integration
+
+---
+
+# Suggested Database Tables
+
+Users
+
+* id
+* name
+* email
+* role
+* company_id
+* team_id
+
+Companies
+
+* id
+* company_name
+* owner_id
+
+Teams
+
+* id
+* team_name
+* company_id
+
+Tasks
+
+* id
+* title
+* description
+* assigned_to
+* created_by
+* start_date
+* due_date
+* status
+* priority
+
+Reports
+
+* id
+* employee_id
+* report_date
+* title
+* work_done
+* challenges
+* wins
+* status
+
+Wins
+
+* id
+* employee_id
+* title
+* description
+* date
+
+Notifications
+
+* id
+* user_id
+* message
+* status
+
+---
+
+# Future Enhancements
+
+* Mobile App Version
+* AI productivity insights
+* Performance scoring system
+* Payroll integration
+* Slack / WhatsApp notifications
+
+---
+
+# Summary
+
+The Employee Performance Wins, Tasks & Reports Tracker is designed to help organizations manage employee productivity using:
+
+* Calendar-based workflow
+* Task assignment
+* Daily reporting
+* Achievement tracking
+* Team and company management
+
+The system improves transparency, accountability, and employee performance monitoring.

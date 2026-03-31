@@ -149,6 +149,19 @@ class TaskController extends Controller
         } else {
             abort_unless($this->canAssign($user), 403, 'Forbidden');
 
+            if ($isManagerReviewFlowTask) {
+                $canTouchManagerTask = ($user->role === 'manager' && $task->created_by === $user->id)
+                    || ($user->role === 'employer' && $task->assigned_to === $user->id);
+
+                abort_unless($canTouchManagerTask || $user->role === 'super_admin', 403, 'Forbidden');
+            }
+
+            if ($isEmployerReviewFlowTask) {
+                $canTouchEmployerTask = $user->role === 'employer' && $task->created_by === $user->id;
+
+                abort_unless($canTouchEmployerTask || $user->role === 'super_admin', 403, 'Forbidden');
+            }
+
             $validated = $request->validate([
                 'title' => 'string|max:255',
                 'description' => 'string',

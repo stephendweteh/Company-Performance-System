@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import axios from '../services/api';
-import { jsPDF } from 'jspdf';
+import { downloadSimplePdf } from '../utils/pdfExport';
 
 export const ReportSubmission = ({ selectedDate, userRole, currentUserId, onReportSubmitted }) => {
   const [formData, setFormData] = useState({
@@ -19,12 +19,19 @@ export const ReportSubmission = ({ selectedDate, userRole, currentUserId, onRepo
   const [reportSortBy, setReportSortBy] = useState('report_date');
   const [reportSortDir, setReportSortDir] = useState('desc');
   const [showAllReports, setShowAllReports] = useState(false);
+  const reportScopedRoles = ['employee', 'employer', 'manager'];
 
   const canSubmit = ['employee', 'employer'].includes(userRole);
   const canRespond = ['manager', 'employer', 'super_admin'].includes(userRole);
-  const shouldUseScopedReportView = ['employee', 'employer'].includes(userRole) && !showAllReports;
+  const shouldUseScopedReportView = reportScopedRoles.includes(userRole) && !showAllReports;
   const visibleReports = shouldUseScopedReportView
-    ? reports.filter((report) => ['submitted', 'reviewed'].includes(report.status))
+    ? reports.filter((report) => {
+        if (userRole === 'manager') {
+          return report.status === 'submitted';
+        }
+
+        return ['submitted', 'reviewed'].includes(report.status);
+      })
     : reports;
 
   const fetchReports = async () => {
@@ -202,64 +209,35 @@ export const ReportSubmission = ({ selectedDate, userRole, currentUserId, onRepo
   };
 
   const exportReportsPDF = () => {
-    const doc = new jsPDF();
-    const visibleReports = shouldUseScopedReportView
-      ? filteredReports.filter((report) => ['submitted', 'reviewed'].includes(report.status))
-      : filteredReports;
-    let yPos = 10;
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const pageWidth = doc.internal.pageSize.getWidth();
+    const reportsToExport = sortReports(filterReports());
+    if (reportsToExport.length === 0) {
+      alert('No reports to export');
+      return;
+    }
 
-    // Title
-    doc.setFontSize(16);
-    doc.text('Reports', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 10;
+    const blocks = reportsToExport.flatMap((report, index) => ([
+      {
+        text: `${index + 1}. ${report.title || 'Report'} (${report.report_date ? new Date(report.report_date).toLocaleDateString() : 'No date'})`,
+        fontSize: 12,
+        bold: true,
+        gapAfter: 4,
+      },
+      {
+        text: `Employee: ${report.employee?.name || '-'} | Status: ${getReportStatusLabel(report.status) || 'N/A'}`,
+        fontSize: 10,
+        gapAfter: 4,
+      },
+      { text: `Work Done: ${report.work_done || 'N/A'}`, fontSize: 10, gapAfter: 4 },
+      { text: `Challenges: ${report.challenges || 'None'}`, fontSize: 10, gapAfter: 4 },
+      { text: `Wins: ${report.wins || 'None'}`, fontSize: 10, gapAfter: report.response_comment ? 4 : 10 },
+      ...(report.response_comment ? [{ text: `Reviewer Comment: ${report.response_comment}`, fontSize: 10, gapAfter: 10 }] : []),
+    ]));
 
-    // Date
-    doc.setFontSize(10);
-    doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, yPos, { align: 'center' });
-    yPos += 8;
-
-    doc.setFontSize(11);
-    visibleReports.forEach((report, index) => {
-      if (yPos > pageHeight - 20) {
-        doc.addPage();
-        yPos = 10;
-      }
-
-      // Report title
-      doc.setFont(undefined, 'bold');
-      doc.text(`${index + 1}. Report - ${new Date(report.report_date).toLocaleDateString()}`, 10, yPos);
-      yPos += 6;
-
-      // Report details
-      doc.setFont(undefined, 'normal');
-      doc.setFontSize(9);
-      doc.text(`Status: ${report.status?.replace('_', ' ') || 'N/A'}`, 10, yPos);
-      yPos += 4;
-
-      // Content
-      if (report.content) {
-        const contentLines = doc.splitTextToSize(report.content, pageWidth - 20);
-        doc.text(contentLines, 10, yPos);
-        yPos += contentLines.length * 4 + 2;
-      }
-
-      // Reviewer comment
-      if (report.response_comment) {
-        doc.setFont(undefined, 'bold');
-        doc.text('Reviewer Comment:', 10, yPos);
-        yPos += 4;
-        doc.setFont(undefined, 'normal');
-        const commentLines = doc.splitTextToSize(report.response_comment, pageWidth - 20);
-        doc.text(commentLines, 10, yPos);
-        yPos += commentLines.length * 4 + 3;
-      }
-
-      yPos += 4;
+    downloadSimplePdf({
+      filename: `reports-${new Date().toISOString().split('T')[0]}.pdf`,
+      title: 'Reports Export',
+      blocks,
     });
-
-    doc.save(`reports-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   const exportReportsCSV = () => {
@@ -305,10 +283,12 @@ export const ReportSubmission = ({ selectedDate, userRole, currentUserId, onRepo
                   ? (showAllReports ? 'All Reports' : 'Submitted & Reviewed Reports')
                   : userRole === 'employee'
                     ? (showAllReports ? 'All Reports' : 'Submitted Reports')
-                    : 'Submitted Reports'}
+                    : userRole === 'manager'
+                      ? (showAllReports ? 'All Reports' : 'Submitted Reports')
+                      : 'Submitted Reports'}
               </h3>
               <div className="flex items-center gap-2">
-                {['employee', 'employer'].includes(userRole) && (
+                {reportScopedRoles.includes(userRole) && (
                   <button
                     className="ta-btn-secondary"
                     onClick={() => setShowAllReports((prev) => !prev)}
@@ -360,8 +340,10 @@ export const ReportSubmission = ({ selectedDate, userRole, currentUserId, onRepo
             <p className="text-sm text-gray-400">
               {reportSearchTerm
                 ? 'No reports match your search.'
-                : (['employee', 'employer'].includes(userRole) && !showAllReports
-                    ? 'No submitted or reviewed reports available.'
+                : (reportScopedRoles.includes(userRole) && !showAllReports
+                    ? userRole === 'manager'
+                      ? 'No submitted reports available.'
+                      : 'No submitted or reviewed reports available.'
                     : 'No reports available.')}
             </p>
           ) : (

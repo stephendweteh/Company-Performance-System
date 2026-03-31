@@ -8,6 +8,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\WinController;
 use App\Http\Controllers\CompanyController;
 use App\Http\Controllers\TeamController;
+use App\Http\Controllers\EmployerGroupController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\UserController;
 
@@ -16,6 +17,7 @@ Route::post('register', [AuthController::class, 'register']);
 Route::post('login',    [AuthController::class, 'login']);
 Route::get('public/companies', [CompanyController::class, 'publicIndex']);
 Route::get('public/teams', [TeamController::class, 'publicIndex']);
+Route::get('public/branding', [AdminController::class, 'publicBranding']);
 
 // Protected routes
 Route::middleware(['auth:sanctum'])->group(function () {
@@ -30,6 +32,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::put('memberships/respond-bulk', [AuthController::class, 'bulkRespondToMemberships']);
 
     Route::get('admin/overview', [AdminController::class, 'overview']);
+    Route::get('admin/branding', [AdminController::class, 'branding']);
+    Route::post('admin/branding', [AdminController::class, 'updateBranding']);
     Route::get('admin/notification-channels', [AdminController::class, 'notificationChannels']);
     Route::get('admin/notification-deliveries', [AdminController::class, 'notificationDeliveries']);
     Route::put('admin/notification-channels', [AdminController::class, 'updateNotificationChannels']);
@@ -58,6 +62,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Teams
     Route::apiResource('teams', TeamController::class);
+    Route::put('teams/{team}/add-employee/{employee}', [TeamController::class, 'addEmployee']);
+    Route::put('teams/{team}/remove-employee/{employee}', [TeamController::class, 'removeEmployee']);
+
+    // Employer Groups
+    Route::apiResource('employer-groups', EmployerGroupController::class);
+    Route::put('employer-groups/{employer_group}/add-employer/{employer}', [EmployerGroupController::class, 'addEmployer']);
+    Route::put('employer-groups/{employer_group}/remove-employer/{employer}', [EmployerGroupController::class, 'removeEmployer']);
 
     // Notifications
     Route::put('notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);

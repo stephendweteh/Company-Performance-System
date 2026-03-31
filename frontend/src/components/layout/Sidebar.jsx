@@ -1,5 +1,6 @@
 import React, { useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
+import AppLogo from './AppLogo';
 
 /* ── inline SVG icons ─────────────────────────────────────── */
 const Icon = ({ children, className }) => (
@@ -59,6 +60,16 @@ const icons = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M5.121 17.804A9 9 0 1118.878 17.8M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
     </Icon>
   ),
+  teams: (
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 8.048M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-4a4 4 0 100 8 4 4 0 000-8z" />
+    </Icon>
+  ),
+  employer_groups: (
+    <Icon>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.856-1.487M15 10a3 3 0 11-6 0 3 3 0 016 0zM16 5h5v-2a3 3 0 00-5.856-1.487M6 20H1v-2a3 3 0 015.856-1.487M13 16H7v-2a3 3 0 0111.192 0v2z" />
+    </Icon>
+  ),
   close: (
     <Icon className="h-4 w-4">
       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -71,6 +82,8 @@ const navLinks = [
   { label: 'Tasks',         tab: 'tasks',         roles: ['employee', 'employer', 'manager', 'super_admin'], icon: icons.tasks },
   { label: 'Reports',       tab: 'reports',       roles: ['employee', 'employer', 'manager', 'super_admin'], icon: icons.reports },
   { label: 'Achievements',  tab: 'wins',          roles: ['employee', 'employer', 'manager', 'super_admin'], icon: icons.wins },
+  { label: 'Teams',         tab: 'teams',         roles: ['employer', 'super_admin'],                       icon: icons.teams },
+  { label: 'Employer Groups', tab: 'employer_groups', roles: ['manager', 'super_admin'],                   icon: icons.employer_groups },
   { label: 'Companies',     tab: 'companies',     roles: ['employer', 'manager', 'super_admin'],             icon: icons.companies },
   { label: 'Notifications', tab: 'notifications', roles: ['employee', 'employer', 'manager', 'super_admin'], icon: icons.notifications },
   { label: 'Admin Panel',   tab: 'admin',         roles: ['super_admin'],                         icon: icons.admin },
@@ -84,7 +97,7 @@ const rolePill = {
   employee:    'bg-warning/20 text-warning',
 };
 
-const Sidebar = ({ activeTab, setActiveTab, sidebarOpen, setSidebarOpen }) => {
+const Sidebar = ({ activeTab, setActiveTab, sidebarOpen, setSidebarOpen, branding }) => {
   const { user } = useContext(AuthContext);
 
   const handleNav = (tab) => {
@@ -110,14 +123,11 @@ const Sidebar = ({ activeTab, setActiveTab, sidebarOpen, setSidebarOpen }) => {
       >
         {/* ── Logo ── */}
         <div className="flex items-center justify-between px-6 py-6 border-b border-sidebar-hover">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary">
-              <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </div>
-            <span className="text-white font-bold text-base tracking-wide">PerformTrack</span>
-          </div>
+          <AppLogo
+            branding={branding}
+            textClassName="text-white font-bold text-base tracking-wide"
+            imageWrapperClassName="flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg bg-white/95 p-1 shadow-sm"
+          />
           <button onClick={() => setSidebarOpen(false)} className="text-bodydark hover:text-white lg:hidden">
             {icons.close}
           </button>

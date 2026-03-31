@@ -16,10 +16,22 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class AdminController extends Controller
 {
+    protected function appDisplayName(?NotificationChannelSetting $settings = null)
+    {
+        if ($settings && !empty($settings->app_name)) {
+            return $settings->app_name;
+        }
+
+        $name = config('app.name');
+
+        return $name && $name !== 'Laravel' ? $name : 'PerformTrack';
+    }
+
     protected function ensureSuperAdmin(Request $request)
     {
         abort_unless($request->user() && $request->user()->role === 'super_admin', 403, 'Forbidden');
@@ -73,6 +85,71 @@ class AdminController extends Controller
             'arkesel_sender_id' => $settings->arkesel_sender_id,
             'arkesel_api_url' => $settings->arkesel_api_url,
             'has_arkesel_api_key' => !empty($settings->arkesel_api_key),
+        ]);
+    }
+
+    public function publicBranding()
+    {
+        $settings = $this->channelSettings();
+
+        return response()->json([
+            'app_name' => $this->appDisplayName($settings),
+            'app_logo_url' => $settings->app_logo_url,
+            'has_app_logo' => !empty($settings->app_logo_path),
+        ]);
+    }
+
+    public function branding(Request $request)
+    {
+        $this->ensureSuperAdmin($request);
+
+        $settings = $this->channelSettings();
+
+        return response()->json([
+            'app_name' => $this->appDisplayName($settings),
+            'app_logo_url' => $settings->app_logo_url,
+            'has_app_logo' => !empty($settings->app_logo_path),
+        ]);
+    }
+
+    public function updateBranding(Request $request)
+    {
+        $this->ensureSuperAdmin($request);
+
+        $validated = $request->validate([
+            'app_name' => 'nullable|string|max:120',
+            'app_logo' => 'nullable|image|mimes:jpg,jpeg,png,webp,svg|max:4096',
+            'clear_app_logo' => 'sometimes|boolean',
+        ]);
+
+        $settings = $this->channelSettings();
+
+        if (array_key_exists('app_name', $validated)) {
+            $appName = trim((string) $validated['app_name']);
+            $settings->app_name = $appName !== '' ? $appName : null;
+        }
+
+        if ($request->hasFile('app_logo')) {
+            if ($settings->app_logo_path) {
+                Storage::disk('public')->delete($settings->app_logo_path);
+            }
+
+            $settings->app_logo_path = $request->file('app_logo')->store('app-branding', 'public');
+        } elseif (!empty($validated['clear_app_logo']) && $settings->app_logo_path) {
+            Storage::disk('public')->delete($settings->app_logo_path);
+            $settings->app_logo_path = null;
+        }
+
+        $settings->updated_by = $request->user()->id;
+        $settings->save();
+
+        return response()->json([
+            'message' => 'Branding updated successfully.',
+            'branding' => [
+                'app_name' => $this->appDisplayName($settings),
+                'app_logo_url' => $settings->app_logo_url,
+                'has_app_logo' => !empty($settings->app_logo_path),
+            ],
         ]);
     }
 

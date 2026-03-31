@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../services/api';
-import { jsPDF } from 'jspdf';
+import { downloadSimplePdf } from '../utils/pdfExport';
 
 export const TaskList = ({
   selectedDate,
@@ -22,15 +22,18 @@ export const TaskList = ({
   const [sortBy, setSortBy] = useState('due_date');
   const [sortDir, setSortDir] = useState('asc');
   const [showAllTasks, setShowAllTasks] = useState(false);
+  const isManagerViewingAllTasks = userRole === 'manager' && showAllTasks;
 
   useEffect(() => {
     fetchTasks();
-  }, [selectedDate, refreshKey]);
+  }, [selectedDate, refreshKey, isManagerViewingAllTasks]);
 
   const fetchTasks = async () => {
     setLoading(true);
     try {
-      const params = selectedDate ? { date: selectedDate.toISOString().split('T')[0] } : {};
+      const params = selectedDate && !isManagerViewingAllTasks
+        ? { date: selectedDate.toISOString().split('T')[0] }
+        : {};
       const response = await axios.get('/api/tasks', {
         params,
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
@@ -304,58 +307,38 @@ export const TaskList = ({
   };
 
   const exportTasksPDF = () => {
-    const doc = new jsPDF();
-    const tasks = sortTasks(filterTasks());
-    let yPos = 10;
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const pageWidth = doc.internal.pageSize.getWidth();
+    const tasksToExport = sortTasks(filterTasks());
+    if (tasksToExport.length === 0) {
+      alert('No tasks to export');
+      return;
+    }
 
-    // Title
-    doc.setFontSize(16);
-    doc.text('Tasks Report', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 10;
+    const blocks = tasksToExport.flatMap((task, index) => ([
+      { text: `${index + 1}. ${task.title}`, fontSize: 12, bold: true, gapAfter: 4 },
+      {
+        text: `Assigned To: ${task.assignee?.name || '-'} | Priority: ${task.priority || 'N/A'} | Due: ${task.due_date ? new Date(task.due_date).toLocaleDateString() : 'N/A'} | Status: ${task.status?.replace('_', ' ') || 'N/A'}`,
+        fontSize: 10,
+        gapAfter: 4,
+      },
+      { text: task.description || 'No description provided.', fontSize: 10, gapAfter: 10 },
+    ]));
 
-    // Date
-    doc.setFontSize(10);
-    doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, yPos, { align: 'center' });
-    yPos += 8;
-
-    doc.setFontSize(11);
-    tasks.forEach((task, index) => {
-      if (yPos > pageHeight - 20) {
-        doc.addPage();
-        yPos = 10;
-      }
-
-      // Task title
-      doc.setFont(undefined, 'bold');
-      doc.text(`${index + 1}. ${task.title}`, 10, yPos);
-      yPos += 6;
-
-      // Task details
-      doc.setFont(undefined, 'normal');
-      doc.setFontSize(9);
-      doc.text(`Priority: ${task.priority || 'N/A'} | Due: ${task.due_date ? new Date(task.due_date).toLocaleDateString() : 'N/A'} | Status: ${task.status || 'N/A'}`, 10, yPos);
-      yPos += 5;
-
-      // Description
-      if (task.description) {
-        const descLines = doc.splitTextToSize(task.description, pageWidth - 20);
-        doc.text(descLines, 10, yPos);
-        yPos += descLines.length * 4 + 2;
-      }
-
-      yPos += 4;
+    downloadSimplePdf({
+      filename: `tasks-${new Date().toISOString().split('T')[0]}.pdf`,
+      title: 'Tasks Report',
+      blocks,
     });
-
-    doc.save(`tasks-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   return (
     <div className="ta-card">
       <div className="ta-card-header flex items-center justify-between">
         <h2 className="font-semibold text-sidebar">
-          {selectedDate ? `Tasks — ${selectedDate.toDateString()}` : 'Tasks'}
+          {isManagerViewingAllTasks
+            ? 'All Tasks'
+            : selectedDate
+              ? `Tasks — ${selectedDate.toDateString()}`
+              : 'Tasks'}
         </h2>
         <span className="text-sm text-gray-400">{tasks.length} task{tasks.length !== 1 ? 's' : ''}</span>
       </div>
@@ -407,6 +390,15 @@ export const TaskList = ({
           <button onClick={exportTasksPDF} className="ta-btn-secondary h-10">
             📄 Export PDF
           </button>
+          {userRole === 'manager' && (
+            <button
+              type="button"
+              className="ta-btn-secondary h-10"
+              onClick={() => setShowAllTasks((prev) => !prev)}
+            >
+              {showAllTasks ? 'Show Selected Date' : 'View All Tasks'}
+            </button>
+          )}
           {userRole === 'employee' && (
             <button
               className="ta-btn-secondary h-10"
@@ -424,7 +416,9 @@ export const TaskList = ({
           <p className="py-8 text-center text-sm text-gray-400">
             {userRole === 'employee' && !showAllTasks
               ? 'No pending tasks assigned to you.'
-              : 'No tasks assigned for this date.'}
+              : userRole === 'manager' && showAllTasks
+                ? 'No tasks available.'
+                : 'No tasks assigned for this date.'}
           </p>
         ) : (
           <div className="overflow-x-auto">

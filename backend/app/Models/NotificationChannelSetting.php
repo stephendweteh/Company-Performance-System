@@ -10,7 +10,12 @@ class NotificationChannelSetting extends Model
 {
     use HasFactory;
 
+    protected $appends = [
+        'app_logo_url',
+    ];
+
     protected $fillable = [
+        'app_name',
         'smtp_host',
         'smtp_port',
         'smtp_encryption',
@@ -21,6 +26,7 @@ class NotificationChannelSetting extends Model
         'arkesel_api_key',
         'arkesel_sender_id',
         'arkesel_api_url',
+        'app_logo_path',
         'updated_by',
     ];
 
@@ -68,5 +74,10 @@ class NotificationChannelSetting extends Model
     public function updater()
     {
         return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function getAppLogoUrlAttribute()
+    {
+        return $this->app_logo_path ? '/storage/'.$this->app_logo_path : null;
     }
 }

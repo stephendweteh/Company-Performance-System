@@ -22,6 +22,8 @@ class UserController extends Controller
 
             $query->where('role', $request->role);
         } elseif (in_array($currentUser->role, ['employer', 'manager'])) {
+            // Only apply default filtering if no role parameter was provided
+            // This allows managers to explicitly request other roles like 'employer'
             $query->where('role', 'employee');
         }
 

@@ -29,7 +29,13 @@ const emptyChannelSettings = {
   has_arkesel_api_key: false,
 };
 
-export const SuperAdminDashboard = () => {
+const emptyBrandingSettings = {
+  app_name: 'PerformTrack',
+  app_logo_url: null,
+  has_app_logo: false,
+};
+
+export const SuperAdminDashboard = ({ onBrandingUpdated }) => {
   const [overview, setOverview] = useState(null);
   const [users, setUsers] = useState([]);
   const [deliveryLogs, setDeliveryLogs] = useState([]);
@@ -48,7 +54,11 @@ export const SuperAdminDashboard = () => {
   const [editingUserId, setEditingUserId] = useState(null);
   const [formData, setFormData] = useState(emptyForm);
   const [channelSettings, setChannelSettings] = useState(emptyChannelSettings);
+  const [brandingSettings, setBrandingSettings] = useState(emptyBrandingSettings);
   const [settingsSaving, setSettingsSaving] = useState(false);
+  const [brandingFile, setBrandingFile] = useState(null);
+  const [brandingSaving, setBrandingSaving] = useState(false);
+  const [clearBrandingLogo, setClearBrandingLogo] = useState(false);
   const [smtpTesting, setSmtpTesting] = useState(false);
   const [smsTesting, setSmsTesting] = useState(false);
   const [smtpTestEmail, setSmtpTestEmail] = useState('');
@@ -100,6 +110,17 @@ export const SuperAdminDashboard = () => {
       smtp_password: '',
       arkesel_api_key: '',
     }));
+  };
+
+  const fetchBranding = async () => {
+    const response = await axios.get('/api/admin/branding', authConfig);
+    const data = response.data || {};
+
+    setBrandingSettings({
+      app_name: data.app_name || 'PerformTrack',
+      app_logo_url: data.app_logo_url || null,
+      has_app_logo: !!data.has_app_logo,
+    });
   };
 
   const fetchUsers = async () => {
@@ -160,6 +181,7 @@ export const SuperAdminDashboard = () => {
         fetchUsers(),
         fetchNotificationDeliveries(),
         fetchCompaniesAndTeams(),
+        fetchBranding(),
         fetchNotificationChannels(),
       ]);
     } catch (error) {
@@ -338,6 +360,46 @@ export const SuperAdminDashboard = () => {
     setSettingsSaving(false);
   };
 
+  const handleSaveBranding = async (event) => {
+    event.preventDefault();
+    setBrandingSaving(true);
+
+    try {
+      const payload = new FormData();
+
+      payload.append('app_name', brandingSettings.app_name || '');
+
+      if (brandingFile) {
+        payload.append('app_logo', brandingFile);
+      }
+
+      if (clearBrandingLogo) {
+        payload.append('clear_app_logo', '1');
+      }
+
+      const response = await axios.post('/api/admin/branding', payload, {
+        ...authConfig,
+        headers: {
+          ...authConfig.headers,
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      setBrandingFile(null);
+      setClearBrandingLogo(false);
+      setMessage(response.data?.message || 'Branding updated successfully.');
+      await fetchBranding();
+      await onBrandingUpdated?.();
+    } catch (error) {
+      const validationMessage = error.response?.data?.errors
+        ? Object.values(error.response.data.errors).flat().join(' ')
+        : null;
+      setMessage(validationMessage || error.response?.data?.message || 'Failed to update branding.');
+    }
+
+    setBrandingSaving(false);
+  };
+
   const handleTestSmtp = async () => {
     setSmtpTesting(true);
 
@@ -451,6 +513,76 @@ export const SuperAdminDashboard = () => {
         description="Accept or reject new employee registrations across all companies."
         onMembershipUpdated={loadDashboard}
       />
+
+      <div className="ta-card">
+        <div className="ta-card-header">
+          <h3 className="font-semibold text-sidebar">Branding</h3>
+        </div>
+        <div className="ta-card-body">
+          <form onSubmit={handleSaveBranding} className="space-y-5">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
+              <div className="flex min-h-[9rem] w-full max-w-xs items-center justify-center rounded-sm border border-dashed border-stroke bg-whiten p-4">
+                {brandingSettings.app_logo_url && !clearBrandingLogo ? (
+                  <img src={brandingSettings.app_logo_url} alt={`${brandingSettings.app_name} logo`} className="max-h-24 w-auto object-contain" />
+                ) : (
+                  <div className="text-center text-sm text-gray-400">
+                    <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-white">
+                      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    </div>
+                    No custom logo uploaded
+                  </div>
+                )}
+              </div>
+
+              <div className="flex-1 space-y-4">
+                <div>
+                  <label className="ta-label">Application Name</label>
+                  <input
+                    value={brandingSettings.app_name}
+                    onChange={(event) => setBrandingSettings((prev) => ({
+                      ...prev,
+                      app_name: event.target.value,
+                    }))}
+                    className="ta-input"
+                    maxLength={120}
+                    placeholder="Enter application name"
+                  />
+                </div>
+                <div>
+                  <label className="ta-label">Upload Logo</label>
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0] || null;
+                      setBrandingFile(file);
+                      if (file) {
+                        setClearBrandingLogo(false);
+                      }
+                    }}
+                    className="ta-input file:mr-3 file:rounded-sm file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:opacity-90"
+                  />
+                  <p className="mt-2 text-xs text-gray-400">PNG, JPG, WEBP, or SVG up to 4MB.</p>
+                  {brandingFile && <p className="mt-2 text-sm text-sidebar">Selected file: {brandingFile.name}</p>}
+                </div>
+                <label className="flex items-center gap-2 text-sm text-gray-500">
+                  <input type="checkbox" checked={clearBrandingLogo} onChange={(e) => setClearBrandingLogo(e.target.checked)} />
+                  Remove current logo
+                </label>
+                <button
+                  type="submit"
+                  disabled={brandingSaving}
+                  className="ta-btn-primary disabled:opacity-60"
+                >
+                  {brandingSaving ? 'Saving...' : 'Save Logo'}
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
 
       {showForm && (
         <div className="ta-card">
