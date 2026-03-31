@@ -17,6 +17,7 @@ function App() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [activeTab, setActiveTab] = useState('calendar');
   const [dateSelectionTargetTab, setDateSelectionTargetTab] = useState(null);
+  const [employeePendingFocus, setEmployeePendingFocus] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [taskRefreshKey, setTaskRefreshKey] = useState(0);
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
@@ -32,6 +33,7 @@ function App() {
       setActiveTab('calendar');
       setSelectedDate(null);
       setDateSelectionTargetTab(null);
+      setEmployeePendingFocus(false);
     }
   }, [user?.id]);
 
@@ -39,12 +41,20 @@ function App() {
     setSelectedDate(date);
 
     if (dateSelectionTargetTab) {
+      setEmployeePendingFocus(false);
       setActiveTab(dateSelectionTargetTab);
       setDateSelectionTargetTab(null);
       return;
     }
 
+    if (user?.role === 'employee') {
+      setEmployeePendingFocus(true);
+      setActiveTab('tasks');
+      return;
+    }
+
     if (['manager', 'employer'].includes(user?.role)) {
+      setEmployeePendingFocus(false);
       setActiveTab('tasks');
     }
   };
@@ -146,7 +156,15 @@ function App() {
                   onTaskCreated={() => { setTaskRefreshKey((prev) => prev + 1); setCalendarRefreshKey((prev) => prev + 1); }}
                 />
               )}
-              <TaskList selectedDate={selectedDate} userRole={user?.role} currentUserId={user?.id} refreshKey={taskRefreshKey} onStatusChange={() => setCalendarRefreshKey((prev) => prev + 1)} />
+              <TaskList
+                selectedDate={selectedDate}
+                userRole={user?.role}
+                currentUserId={user?.id}
+                refreshKey={taskRefreshKey}
+                onStatusChange={() => setCalendarRefreshKey((prev) => prev + 1)}
+                pendingOnly={user?.role === 'employee' && employeePendingFocus}
+                onClearPendingOnly={() => setEmployeePendingFocus(false)}
+              />
             </div>
           )}
 

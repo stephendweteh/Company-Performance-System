@@ -1,7 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../services/api';
 
-export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0, onStatusChange }) => {
+export const TaskList = ({
+  selectedDate,
+  userRole,
+  currentUserId,
+  refreshKey = 0,
+  onStatusChange,
+  pendingOnly = false,
+  onClearPendingOnly,
+}) => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [expandedTaskId, setExpandedTaskId] = useState(null);
@@ -182,10 +190,14 @@ export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0
   );
 
   const filterTasks = () => {
-    return tasks.filter((task) =>
-      task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      task.description.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    return tasks.filter((task) => {
+      const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase())
+        || task.description.toLowerCase().includes(searchTerm.toLowerCase());
+
+      if (!matchesSearch) return false;
+      if (!pendingOnly) return true;
+      return task.status === 'pending';
+    });
   };
 
   const sortTasks = (tasksToSort) => {
@@ -250,6 +262,19 @@ export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0
         <span className="text-sm text-gray-400">{tasks.length} task{tasks.length !== 1 ? 's' : ''}</span>
       </div>
       <div className="ta-card-body">
+        {pendingOnly && userRole === 'employee' && (
+          <div className="mb-4 flex items-center justify-between rounded border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+            <span>Showing pending tasks for the selected date.</span>
+            <button
+              type="button"
+              className="font-semibold underline hover:no-underline"
+              onClick={() => onClearPendingOnly && onClearPendingOnly()}
+            >
+              Show all tasks
+            </button>
+          </div>
+        )}
+
         {/* Search, Sort, Export Controls */}
         <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end">
           <div className="flex-1">
