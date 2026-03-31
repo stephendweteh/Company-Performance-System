@@ -14,6 +14,7 @@ use App\Models\Win;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
 
@@ -379,15 +380,18 @@ class AdminController extends Controller
 
         $deleted = [];
 
-        if (in_array('tasks', $validated['targets'])) {
-            Task::truncate();
-            $deleted[] = 'tasks';
-        }
+        DB::transaction(function () use ($validated, &$deleted) {
+            if (in_array('tasks', $validated['targets'])) {
+                DB::table('task_attachments')->delete();
+                DB::table('tasks')->delete();
+                $deleted[] = 'tasks';
+            }
 
-        if (in_array('reports', $validated['targets'])) {
-            Report::truncate();
-            $deleted[] = 'reports';
-        }
+            if (in_array('reports', $validated['targets'])) {
+                DB::table('reports')->delete();
+                $deleted[] = 'reports';
+            }
+        });
 
         return response()->json([
             'message' => 'Data cleared: ' . implode(', ', $deleted) . '.',
