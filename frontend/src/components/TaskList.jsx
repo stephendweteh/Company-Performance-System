@@ -102,6 +102,10 @@ export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0
     const map = { low: 'ta-badge-success', medium: 'ta-badge-warning', high: 'ta-badge-danger', critical: 'ta-badge-danger' };
     return map[p] || 'ta-badge-primary';
   };
+  const priorityLabel = (p) => {
+    const map = { critical: 'A', high: 'B', medium: 'C', low: 'D' };
+    return map[p] || p;
+  };
   const statusBadge = (s) => {
     const map = { completed: 'ta-badge-success', in_progress: 'ta-badge-primary', pending: 'ta-badge-warning', pending_review: 'ta-badge-warning' };
     return map[s] || 'ta-badge-primary';
@@ -406,7 +410,12 @@ export const TaskList = ({ selectedDate, userRole, currentUserId, refreshKey = 0
                       )}
                     </td>
                     <td className="py-4 pr-4">
-                      <span className={priorityBadge(task.priority)}>{task.priority}</span>
+                      <span
+                        className={`${priorityBadge(task.priority)} min-w-[2rem] justify-center px-2 uppercase`}
+                        title={`Priority: ${task.priority}`}
+                      >
+                        {priorityLabel(task.priority)}
+                      </span>
                     </td>
                     <td className="py-4 pr-4 text-gray-500">
                       {task.due_date ? new Date(task.due_date).toLocaleDateString() : '—'}
