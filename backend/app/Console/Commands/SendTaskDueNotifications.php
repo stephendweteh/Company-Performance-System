@@ -4,11 +4,20 @@ namespace App\Console\Commands;
 
 use App\Models\Notification;
 use App\Models\Task;
+use App\Services\NotificationDispatchService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 
 class SendTaskDueNotifications extends Command
 {
+    protected $notificationDispatch;
+
+    public function __construct(NotificationDispatchService $notificationDispatch)
+    {
+        parent::__construct();
+        $this->notificationDispatch = $notificationDispatch;
+    }
+
     /**
      * The name and signature of the console command.
      *
@@ -57,13 +66,12 @@ class SendTaskDueNotifications extends Command
                 continue;
             }
 
-            Notification::create([
-                'user_id' => $task->assignee->id,
-                'message' => 'Task "' . $task->title . '" is due today.',
-                'status' => Notification::STATUS_UNREAD,
-                'type' => Notification::TYPE_TASK_DUE,
-                'related_id' => $task->id,
-            ]);
+            $this->notificationDispatch->send(
+                $task->assignee,
+                'Task "' . $task->title . '" is due today.',
+                Notification::TYPE_TASK_DUE,
+                $task->id
+            );
 
             $createdCount++;
         }

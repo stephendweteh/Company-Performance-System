@@ -5,23 +5,16 @@ namespace App\Http\Controllers;
 use App\Models\Notification;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\NotificationDispatchService;
 use Illuminate\Http\Request;
 
 class TaskController extends Controller
 {
-    protected function notifyUser(?User $recipient, string $message, string $type, int $relatedId, ?int $actorId = null): void
-    {
-        if (!$recipient || ($actorId && $recipient->id === $actorId)) {
-            return;
-        }
+    protected $notificationDispatch;
 
-        Notification::create([
-            'user_id' => $recipient->id,
-            'message' => $message,
-            'status' => Notification::STATUS_UNREAD,
-            'type' => $type,
-            'related_id' => $relatedId,
-        ]);
+    public function __construct(NotificationDispatchService $notificationDispatch)
+    {
+        $this->notificationDispatch = $notificationDispatch;
     }
 
     protected function canAssign($user)
@@ -121,7 +114,7 @@ class TaskController extends Controller
             }
         }
 
-        $this->notifyUser(
+        $this->notificationDispatch->send(
             $assignee,
             ($creator->name ?? 'A user') . ' assigned you a new task: ' . $task->title,
             Notification::TYPE_TASK_ASSIGNED,
@@ -260,7 +253,7 @@ class TaskController extends Controller
 
         if (array_key_exists('status', $validated) && $validated['status'] !== $originalStatus) {
             if ($validated['status'] === Task::STATUS_PENDING_REVIEW) {
-                $this->notifyUser(
+                $this->notificationDispatch->send(
                     $task->creator,
                     ($user->name ?? 'A user') . ' sent task "' . $task->title . '" for review.',
                     Notification::TYPE_TASK_COMPLETED,
@@ -270,7 +263,7 @@ class TaskController extends Controller
             }
 
             if ($validated['status'] === Task::STATUS_COMPLETED) {
-                $this->notifyUser(
+                $this->notificationDispatch->send(
                     $task->assignee,
                     'Your task "' . $task->title . '" was marked completed by ' . ($user->name ?? 'a reviewer') . '.',
                     Notification::TYPE_TASK_COMPLETED,

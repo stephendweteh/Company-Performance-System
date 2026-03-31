@@ -5,24 +5,17 @@ namespace App\Http\Controllers;
 use App\Models\Notification;
 use App\Models\Report;
 use App\Models\User;
+use App\Services\NotificationDispatchService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class ReportController extends Controller
 {
-    protected function notifyUser(?User $recipient, string $message, string $type, int $relatedId, ?int $actorId = null): void
-    {
-        if (!$recipient || ($actorId && $recipient->id === $actorId)) {
-            return;
-        }
+    protected $notificationDispatch;
 
-        Notification::create([
-            'user_id' => $recipient->id,
-            'message' => $message,
-            'status' => Notification::STATUS_UNREAD,
-            'type' => $type,
-            'related_id' => $relatedId,
-        ]);
+    public function __construct(NotificationDispatchService $notificationDispatch)
+    {
+        $this->notificationDispatch = $notificationDispatch;
     }
 
     public function index(Request $request)
@@ -115,7 +108,7 @@ class ReportController extends Controller
             'attachments' => $attachments,
         ]);
 
-        $this->notifyUser(
+        $this->notificationDispatch->send(
             $report->reviewer,
             ($currentUser->name ?? 'A user') . ' submitted a report: ' . $report->title,
             Notification::TYPE_REPORT_SUBMITTED,
@@ -168,7 +161,7 @@ class ReportController extends Controller
             'reviewer_id' => $report->reviewer_id ?? $currentUser->id,
         ]);
 
-        $this->notifyUser(
+        $this->notificationDispatch->send(
             $report->employee,
             ($currentUser->name ?? 'A reviewer') . ' responded to your report "' . $report->title . '" with status ' . str_replace('_', ' ', $validated['status']) . '.',
             Notification::TYPE_REPORT_COMMENT,

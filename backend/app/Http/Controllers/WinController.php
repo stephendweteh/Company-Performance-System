@@ -5,23 +5,16 @@ namespace App\Http\Controllers;
 use App\Models\Notification;
 use App\Models\Win;
 use App\Models\User;
+use App\Services\NotificationDispatchService;
 use Illuminate\Http\Request;
 
 class WinController extends Controller
 {
-    protected function notifyUser(?User $recipient, string $message, string $type, int $relatedId, ?int $actorId = null): void
-    {
-        if (!$recipient || ($actorId && $recipient->id === $actorId)) {
-            return;
-        }
+    protected $notificationDispatch;
 
-        Notification::create([
-            'user_id' => $recipient->id,
-            'message' => $message,
-            'status' => Notification::STATUS_UNREAD,
-            'type' => $type,
-            'related_id' => $relatedId,
-        ]);
+    public function __construct(NotificationDispatchService $notificationDispatch)
+    {
+        $this->notificationDispatch = $notificationDispatch;
     }
 
     public function index(Request $request)
@@ -101,7 +94,7 @@ class WinController extends Controller
             'status' => Win::STATUS_SUBMITTED,
         ]);
 
-        $this->notifyUser(
+        $this->notificationDispatch->send(
             $win->reviewer,
             ($currentUser->name ?? 'A user') . ' recorded an achievement: ' . $win->title,
             Notification::TYPE_WIN_RECORDED,
@@ -160,7 +153,7 @@ class WinController extends Controller
             ? ' Score: ' . $validated['score'] . '/5.'
             : '';
 
-        $this->notifyUser(
+        $this->notificationDispatch->send(
             $win->employee,
             ($currentUser->name ?? 'A reviewer') . ' responded to your achievement "' . $win->title . '" with status ' . $statusLabel . '.' . $scoreSuffix,
             Notification::TYPE_WIN_RECORDED,
