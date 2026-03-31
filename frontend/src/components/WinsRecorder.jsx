@@ -12,6 +12,10 @@ export const WinsRecorder = ({ selectedDate, userRole, onWinRecorded }) => {
   const [wins, setWins] = useState([]);
   const [loadingWins, setLoadingWins] = useState(false);
   const [reviewByWin, setReviewByWin] = useState({});
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('date');
+  const [sortDir, setSortDir] = useState('desc');
+  const [filterStatus, setFilterStatus] = useState('');
 
   const canSubmit = ['employee', 'employer'].includes(userRole);
   const renderStars = (score) => {
@@ -72,6 +76,65 @@ export const WinsRecorder = ({ selectedDate, userRole, onWinRecorded }) => {
       setMessage(error.response?.data?.message || 'Error recording win');
     }
     setLoading(false);
+  };
+
+  const filterAndSortWins = () => {
+    let filtered = wins.filter((win) => {
+      const matchesSearch =
+        win.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        win.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (win.employee?.name && win.employee.name.toLowerCase().includes(searchTerm.toLowerCase()));
+      const matchesStatus = !filterStatus || win.status === filterStatus;
+      return matchesSearch && matchesStatus;
+    });
+
+    filtered.sort((a, b) => {
+      let aVal, bVal;
+      if (sortBy === 'date') {
+        aVal = new Date(a.date || 0);
+        bVal = new Date(b.date || 0);
+      } else if (sortBy === 'status') {
+        aVal = a.status || '';
+        bVal = b.status || '';
+      } else if (sortBy === 'score') {
+        aVal = Number(a.score) || 0;
+        bVal = Number(b.score) || 0;
+      } else if (sortBy === 'title') {
+        aVal = a.title || '';
+        bVal = b.title || '';
+      }
+      if (aVal < bVal) return sortDir === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return filtered;
+  };
+
+  const exportWinsCSV = () => {
+    const filtered = filterAndSortWins();
+    const headers = ['Title', 'Description', 'Employee', 'Date', 'Status', 'Score', 'Reviewer Comment'];
+    const rows = filtered.map((win) => [
+      win.title,
+      win.description,
+      win.employee?.name || 'N/A',
+      new Date(win.date).toLocaleDateString(),
+      win.status?.replace('_', ' ') || 'N/A',
+      win.score ? `${win.score}/5` : 'N/A',
+      win.response_comment || '',
+    ]);
+
+    const csv = [
+      headers.map((h) => `"${h}"`).join(','),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
+    ].join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `achievements-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   const handleReviewField = (winId, field, value) => {
@@ -178,15 +241,74 @@ export const WinsRecorder = ({ selectedDate, userRole, onWinRecorded }) => {
       <div className="ta-card">
         <div className="ta-card-header flex items-center justify-between">
           <h3 className="font-semibold text-sidebar">Achievements</h3>
-          <button className="ta-btn-secondary" onClick={fetchWins}>
-            {loadingWins ? 'Loading...' : 'Refresh'}
-          </button>
+          <div className="flex gap-2">
+            <button className="ta-btn-secondary" onClick={exportWinsCSV}>
+              📥 Export CSV
+            </button>
+            <button className="ta-btn-secondary" onClick={fetchWins}>
+              {loadingWins ? 'Loading...' : 'Refresh'}
+            </button>
+          </div>
         </div>
         <div className="ta-card-body space-y-4">
-          {wins.length === 0 ? (
-            <p className="text-sm text-gray-400">No achievements available.</p>
+          {/* Search, Sort, Filter Controls */}
+          <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end">
+            <div className="flex-1">
+              <label className="ta-label !mb-1">Search</label>
+              <input
+                type="text"
+                placeholder="Search achievements..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="ta-input"
+              />
+            </div>
+            <div className="w-full md:w-40">
+              <label className="ta-label !mb-1">Sort By</label>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="ta-input"
+              >
+                <option value="date">Date</option>
+                <option value="status">Status</option>
+                <option value="score">Rating</option>
+                <option value="title">Title</option>
+              </select>
+            </div>
+            <div className="w-full md:w-24">
+              <label className="ta-label !mb-1">Order</label>
+              <select
+                value={sortDir}
+                onChange={(e) => setSortDir(e.target.value)}
+                className="ta-input"
+              >
+                <option value="asc">Ascending</option>
+                <option value="desc">Descending</option>
+              </select>
+            </div>
+            <div className="w-full md:w-40">
+              <label className="ta-label !mb-1">Filter by Status</label>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="ta-input"
+              >
+                <option value="">All Statuses</option>
+                <option value="submitted">Submitted</option>
+                <option value="reviewed">Reviewed</option>
+                <option value="approved">Approved</option>
+                <option value="needs_revision">Needs Revision</option>
+              </select>
+            </div>
+          </div>
+
+          {filterAndSortWins().length === 0 ? (
+            <p className="text-sm text-gray-400">
+              {wins.length === 0 ? 'No achievements available.' : 'No achievements match your filters.'}
+            </p>
           ) : (
-            wins.map((win) => (
+            filterAndSortWins().map((win) => (
               <div key={win.id} className="rounded-sm border border-stroke p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h4 className="font-semibold text-sidebar">{win.title}</h4>
