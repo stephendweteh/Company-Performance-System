@@ -19,7 +19,10 @@ export const CalendarDashboard = ({ onDateSelect, refreshKey = 0 }) => {
 
   const parseDate = (value) => {
     if (!value) return null;
-    return new Date(`${value}T00:00:00`);
+    // Normalise: take only the YYYY-MM-DD portion so it works regardless of
+    // whether the API returns "2026-03-10", "2026-03-10T00:00:00.000000Z", etc.
+    const dateOnly = String(value).substring(0, 10);
+    return new Date(`${dateOnly}T00:00:00`);
   };
 
   useEffect(() => {
