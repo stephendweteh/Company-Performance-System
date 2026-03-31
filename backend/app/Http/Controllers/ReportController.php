@@ -20,10 +20,9 @@ class ReportController extends Controller
             $query->where('employee_id', $currentUser->id);
         } elseif ($currentUser->role === 'employer') {
             $query->where(function ($builder) use ($currentUser) {
-                $builder->whereHas('employee', function ($employeeQuery) use ($currentUser) {
-                    $employeeQuery->where('role', 'employee')
-                        ->where('company_id', $currentUser->company_id);
-                })->orWhere('employee_id', $currentUser->id);
+                // Employers can view reports assigned to them for review and their own submissions.
+                $builder->where('reviewer_id', $currentUser->id)
+                    ->orWhere('employee_id', $currentUser->id);
             });
         } elseif ($currentUser->role === 'manager') {
             $query->whereHas('employee', function ($builder) {
@@ -125,9 +124,10 @@ class ReportController extends Controller
             // Employer-submitted reports must only be responded to by managers.
             $canRespond = $currentUser->role === 'manager';
         } elseif ($currentUser->role === 'employer') {
+            // Only the specifically assigned employer reviewer can respond.
             $canRespond = $report->employee
                 && $report->employee->role === 'employee'
-                && $report->employee->company_id === $currentUser->company_id;
+                && $report->reviewer_id === $currentUser->id;
         } elseif ($currentUser->role === 'manager') {
             $canRespond = $report->employee && $report->employee->role === 'employer';
         } elseif ($currentUser->role === 'super_admin') {

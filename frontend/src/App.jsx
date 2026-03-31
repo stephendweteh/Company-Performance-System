@@ -171,9 +171,9 @@ function App() {
           {/* ── Reports ── */}
           {activeTab === 'reports' && (
             ['manager', 'super_admin'].includes(user?.role)
-              ? <ReportSubmission selectedDate={selectedDate} userRole={user?.role} onReportSubmitted={() => setCalendarRefreshKey((prev) => prev + 1)} />
+              ? <ReportSubmission selectedDate={selectedDate} userRole={user?.role} currentUserId={user?.id} onReportSubmitted={() => setCalendarRefreshKey((prev) => prev + 1)} />
               : selectedDate
-                ? <ReportSubmission selectedDate={selectedDate} userRole={user?.role} onReportSubmitted={() => setCalendarRefreshKey((prev) => prev + 1)} />
+                ? <ReportSubmission selectedDate={selectedDate} userRole={user?.role} currentUserId={user?.id} onReportSubmitted={() => setCalendarRefreshKey((prev) => prev + 1)} />
                 : <DatePrompt label="submit a daily report" targetTab="reports" />
           )}
 

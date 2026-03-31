@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import axios from '../services/api';
 
-export const ReportSubmission = ({ selectedDate, userRole, onReportSubmitted }) => {
+export const ReportSubmission = ({ selectedDate, userRole, currentUserId, onReportSubmitted }) => {
   const [formData, setFormData] = useState({
     title: '',
     work_done: '',
@@ -137,7 +137,8 @@ export const ReportSubmission = ({ selectedDate, userRole, onReportSubmitted }) 
     }
 
     if (report.employee?.role === 'employee') {
-      return ['employer', 'super_admin'].includes(userRole);
+      if (userRole === 'super_admin') return true;
+      return userRole === 'employer' && report.reviewer_id === currentUserId;
     }
 
     return userRole === 'super_admin';
@@ -328,6 +329,11 @@ export const ReportSubmission = ({ selectedDate, userRole, onReportSubmitted }) 
 
         {canSubmit && selectedDate && (
         <form onSubmit={handleSubmit} className="space-y-5 mb-4">
+          {userRole === 'employee' && (
+            <div className="rounded border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
+              Your report will be submitted to your company employer for review.
+            </div>
+          )}
           <div>
             <label className="ta-label">Report Title</label>
             <input type="text" name="title" value={formData.title} onChange={handleInputChange}
