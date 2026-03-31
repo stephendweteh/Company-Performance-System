@@ -47,6 +47,9 @@ input:focus, textarea:focus, select:focus { outline: none; }
 .ta-btn-secondary {
   @apply flex items-center justify-center rounded border border-stroke px-5 py-2.5 text-sm font-medium text-black hover:shadow-card transition;
 }
+.ta-btn-danger {
+  @apply flex items-center justify-center rounded bg-danger px-5 py-2.5 text-sm font-medium text-white hover:bg-opacity-90 transition;
+}
 .ta-badge-success {
   @apply inline-flex rounded-full bg-opacity-10 bg-success px-3 py-1 text-sm font-medium text-success;
 }

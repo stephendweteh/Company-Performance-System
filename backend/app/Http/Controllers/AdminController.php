@@ -367,4 +367,30 @@ class AdminController extends Controller
 
         return response()->json($user->load('company', 'team'));
     }
+
+    public function resetData(Request $request)
+    {
+        $this->ensureSuperAdmin($request);
+
+        $validated = $request->validate([
+            'targets' => 'required|array|min:1',
+            'targets.*' => 'in:tasks,reports',
+        ]);
+
+        $deleted = [];
+
+        if (in_array('tasks', $validated['targets'])) {
+            Task::truncate();
+            $deleted[] = 'tasks';
+        }
+
+        if (in_array('reports', $validated['targets'])) {
+            Report::truncate();
+            $deleted[] = 'reports';
+        }
+
+        return response()->json([
+            'message' => 'Data cleared: ' . implode(', ', $deleted) . '.',
+        ]);
+    }
 }

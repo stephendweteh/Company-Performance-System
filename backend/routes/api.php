@@ -41,6 +41,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::put('admin/users/{user}', [AdminController::class, 'updateUser']);
     Route::put('admin/users/{user}/role', [AdminController::class, 'updateUserRole']);
     Route::delete('admin/users/{user}', [AdminController::class, 'deleteUser']);
+    Route::post('admin/reset-data', [AdminController::class, 'resetData']);
 
     // Tasks
     Route::apiResource('tasks', TaskController::class);
