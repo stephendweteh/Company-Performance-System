@@ -42,16 +42,12 @@ export const CalendarDashboard = ({ onDateSelect }) => {
         (response.data || []).forEach((task) => {
           const taskStart = parseDate(task.start_date);
           const taskEnd = parseDate(task.due_date);
-          if (!taskStart || !taskEnd) return;
 
-          const rangeStart = taskStart > monthStart ? taskStart : monthStart;
-          const rangeEnd = taskEnd < monthEnd ? taskEnd : monthEnd;
-          if (rangeStart > rangeEnd) return;
-
-          const cursor = new Date(rangeStart);
-          while (cursor <= rangeEnd) {
-            daySet.add(cursor.getDate());
-            cursor.setDate(cursor.getDate() + 1);
+          if (taskStart && taskStart.getMonth() === currentDate.getMonth() && taskStart.getFullYear() === currentDate.getFullYear()) {
+            daySet.add(taskStart.getDate());
+          }
+          if (taskEnd && taskEnd.getMonth() === currentDate.getMonth() && taskEnd.getFullYear() === currentDate.getFullYear()) {
+            daySet.add(taskEnd.getDate());
           }
         });
         setTaskDays(Array.from(daySet));
