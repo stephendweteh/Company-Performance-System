@@ -144,6 +144,21 @@ export const ReportSubmission = ({ selectedDate, userRole, currentUserId, onRepo
     return userRole === 'super_admin';
   };
 
+  const responseStatusOptions = (report) => {
+    if (userRole === 'employer' && report.employee?.role === 'employee') {
+      return [
+        { value: 'reviewed', label: 'Reviewed' },
+        { value: 'needs_revision', label: 'Needs revision' },
+      ];
+    }
+
+    return [
+      { value: 'reviewed', label: 'Reviewed' },
+      { value: 'approved', label: 'Approved' },
+      { value: 'needs_revision', label: 'Needs revision' },
+    ];
+  };
+
   const filterReports = () => {
     return visibleReports.filter((report) => {
       const search = reportSearchTerm.toLowerCase();
@@ -289,9 +304,9 @@ export const ReportSubmission = ({ selectedDate, userRole, currentUserId, onRepo
                       onChange={(e) => handleResponseField(report.id, 'status', e.target.value)}
                     >
                       <option value="">Select status</option>
-                      <option value="reviewed">Reviewed</option>
-                      <option value="approved">Approved</option>
-                      <option value="needs_revision">Needs revision</option>
+                      {responseStatusOptions(report).map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
                     </select>
                     <input
                       className="ta-input md:col-span-2"
