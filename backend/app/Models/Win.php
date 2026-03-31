@@ -40,7 +40,7 @@ class Win extends Model
 
     public function task()
     {
-        return $this->belongsTo(Task::class, 'task_id')->nullable();
+        return $this->belongsTo(Task::class, 'task_id');
     }
 
     public function reviewer()
