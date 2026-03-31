@@ -17,10 +17,11 @@ export const ReportSubmission = ({ selectedDate, userRole, currentUserId, onRepo
   const [reportSearchTerm, setReportSearchTerm] = useState('');
   const [reportSortBy, setReportSortBy] = useState('report_date');
   const [reportSortDir, setReportSortDir] = useState('desc');
+  const [showAllReports, setShowAllReports] = useState(false);
 
   const canSubmit = ['employee', 'employer'].includes(userRole);
   const canRespond = ['manager', 'employer', 'super_admin'].includes(userRole);
-  const visibleReports = userRole === 'employer'
+  const visibleReports = userRole === 'employer' && !showAllReports
     ? reports.filter((report) => ['submitted', 'reviewed'].includes(report.status))
     : reports;
 
@@ -237,11 +238,23 @@ export const ReportSubmission = ({ selectedDate, userRole, currentUserId, onRepo
           <div className="mb-4 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-sidebar">
-                {userRole === 'employer' ? 'Submitted & Reviewed Reports' : 'Submitted Reports'}
+                {userRole === 'employer'
+                  ? (showAllReports ? 'All Reports' : 'Submitted & Reviewed Reports')
+                  : 'Submitted Reports'}
               </h3>
-              <button className="ta-btn-secondary" onClick={fetchReports}>
-                {loadingReports ? 'Loading...' : 'Refresh'}
-              </button>
+              <div className="flex items-center gap-2">
+                {userRole === 'employer' && (
+                  <button
+                    className="ta-btn-secondary"
+                    onClick={() => setShowAllReports((prev) => !prev)}
+                  >
+                    {showAllReports ? 'Show Reviewed Only' : 'View All Reports'}
+                  </button>
+                )}
+                <button className="ta-btn-secondary" onClick={fetchReports}>
+                  {loadingReports ? 'Loading...' : 'Refresh'}
+                </button>
+              </div>
             </div>
             <input
               type="text"
