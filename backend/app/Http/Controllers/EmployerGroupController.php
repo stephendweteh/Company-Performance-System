@@ -43,24 +43,24 @@ class EmployerGroupController extends Controller
         return response()->json($group, 201);
     }
 
-    public function show(EmployerGroup $group)
+    public function show(EmployerGroup $employer_group)
     {
         abort_unless($this->canManage(request()->user()), 403, 'Forbidden');
 
         // Ensure manager can only view their own groups
-        if (request()->user()->role === 'manager' && request()->user()->id !== $group->manager_id) {
+        if (request()->user()->role === 'manager' && request()->user()->id !== $employer_group->manager_id) {
             abort(403, 'Forbidden');
         }
 
-        return response()->json($group->load('manager', 'employers'));
+        return response()->json($employer_group->load('manager', 'employers'));
     }
 
-    public function update(Request $request, EmployerGroup $group)
+    public function update(Request $request, EmployerGroup $employer_group)
     {
         abort_unless($this->canManage($request->user()), 403, 'Forbidden');
 
         // Ensure manager can only update their own groups
-        if ($request->user()->role === 'manager' && $request->user()->id !== $group->manager_id) {
+        if ($request->user()->role === 'manager' && $request->user()->id !== $employer_group->manager_id) {
             abort(403, 'Forbidden');
         }
 
@@ -68,21 +68,16 @@ class EmployerGroupController extends Controller
             'group_name' => 'string|max:255',
         ]);
 
-        $group->update($validated);
+        $employer_group->update($validated);
 
-        return response()->json($group);
+        return response()->json($employer_group);
     }
 
-    public function destroy(EmployerGroup $group)
+    public function destroy(EmployerGroup $employer_group)
     {
         abort_unless($this->canManage(request()->user()), 403, 'Forbidden');
 
-        // Ensure manager can only delete their own groups
-        if (request()->user()->role === 'manager' && request()->user()->id !== $group->manager_id) {
-            abort(403, 'Forbidden');
-        }
-
-        $group->delete();
+        $employer_group->delete();
         return response()->json(['message' => 'Employer group deleted']);
     }
 
