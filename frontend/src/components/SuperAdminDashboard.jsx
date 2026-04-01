@@ -66,7 +66,6 @@ export const SuperAdminDashboard = ({ onBrandingUpdated }) => {
   const [smsTestMessage, setSmsTestMessage] = useState('PerformTrack SMS test message from Admin settings.');
   const [clearSmtpPassword, setClearSmtpPassword] = useState(false);
   const [clearArkeselApiKey, setClearArkeselApiKey] = useState(false);
-  const [resetTargets, setResetTargets] = useState({ tasks: false, reports: false });
   const [resetting, setResetting] = useState(false);
   const [resetMessage, setResetMessage] = useState('');
 
@@ -959,7 +958,7 @@ export const SuperAdminDashboard = ({ onBrandingUpdated }) => {
         <div className="ta-card-header flex items-center justify-between">
           <div>
             <h3 className="font-semibold text-danger">Reset Data</h3>
-            <p className="mt-0.5 text-sm text-gray-400">Permanently delete all tasks and/or reports. This action cannot be undone.</p>
+            <p className="mt-0.5 text-sm text-gray-400">Permanently delete all application data except SMTP and SMS settings. This action cannot be undone.</p>
           </div>
         </div>
         <div className="ta-card-body">
@@ -972,40 +971,16 @@ export const SuperAdminDashboard = ({ onBrandingUpdated }) => {
               {resetMessage}
             </div>
           )}
-          <div className="flex flex-wrap items-center gap-6 mb-6">
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                className="h-4 w-4 accent-warning"
-                checked={resetTargets.tasks}
-                onChange={(e) => setResetTargets((prev) => ({ ...prev, tasks: e.target.checked }))}
-              />
-              <span className="text-sm font-medium text-sidebar">All Tasks</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                className="h-4 w-4 accent-warning"
-                checked={resetTargets.reports}
-                onChange={(e) => setResetTargets((prev) => ({ ...prev, reports: e.target.checked }))}
-              />
-              <span className="text-sm font-medium text-sidebar">All Reports</span>
-            </label>
-          </div>
           <button
-            disabled={resetting || (!resetTargets.tasks && !resetTargets.reports)}
+            disabled={resetting}
             className="ta-btn-danger disabled:opacity-60"
             onClick={async () => {
-              const targets = Object.entries(resetTargets).filter(([, v]) => v).map(([k]) => k);
-              if (targets.length === 0) return;
-              const label = targets.join(' and ');
-              if (!window.confirm(`Are you sure you want to permanently delete ALL ${label}? This cannot be undone.`)) return;
+              if (!window.confirm('Are you sure you want to permanently delete ALL application data except SMTP and SMS settings? This cannot be undone.')) return;
               setResetting(true);
               setResetMessage('');
               try {
-                const res = await axios.post('/api/admin/reset-data', { targets }, authConfig);
+                const res = await axios.post('/api/admin/reset-data', {}, authConfig);
                 setResetMessage(res.data.message);
-                setResetTargets({ tasks: false, reports: false });
                 loadDashboard();
               } catch (err) {
                 setResetMessage(err.response?.data?.message || 'Reset failed.');

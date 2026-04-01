@@ -450,28 +450,32 @@ class AdminController extends Controller
     {
         $this->ensureSuperAdmin($request);
 
-        $validated = $request->validate([
-            'targets' => 'required|array|min:1',
-            'targets.*' => 'in:tasks,reports',
-        ]);
+        DB::transaction(function () {
+            DB::statement('SET FOREIGN_KEY_CHECKS=0');
 
-        $deleted = [];
+            // Remove activity/operational data
+            DB::table('notification_delivery_logs')->delete();
+            DB::table('notifications')->delete();
+            DB::table('task_attachments')->delete();
+            DB::table('tasks')->delete();
+            DB::table('reports')->delete();
+            DB::table('wins')->delete();
+            DB::table('personal_access_tokens')->delete();
 
-        DB::transaction(function () use ($validated, &$deleted) {
-            if (in_array('tasks', $validated['targets'])) {
-                DB::table('task_attachments')->delete();
-                DB::table('tasks')->delete();
-                $deleted[] = 'tasks';
-            }
+            // Remove structure data
+            DB::table('teams')->delete();
+            DB::table('employer_groups')->delete();
+            DB::table('companies')->delete();
 
-            if (in_array('reports', $validated['targets'])) {
-                DB::table('reports')->delete();
-                $deleted[] = 'reports';
-            }
+            // Keep super admins so dashboard access remains possible
+            DB::table('users')->where('role', '!=', 'super_admin')->delete();
+
+            // Keep notification_channel_settings intact (SMTP/SMS settings)
+            DB::statement('SET FOREIGN_KEY_CHECKS=1');
         });
 
         return response()->json([
-            'message' => 'Data cleared: ' . implode(', ', $deleted) . '.',
+            'message' => 'All application data cleared. SMTP and SMS settings were preserved.',
         ]);
     }
 }
