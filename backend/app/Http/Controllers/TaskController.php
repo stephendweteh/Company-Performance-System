@@ -22,6 +22,25 @@ class TaskController extends Controller
         return $user && in_array($user->role, ['employer', 'manager', 'super_admin']);
     }
 
+    protected function canRespondToTask($user, Task $task)
+    {
+        if (!$user || (int) $task->assigned_to !== (int) $user->id) {
+            return false;
+        }
+
+        $creatorRole = $task->creator?->role;
+
+        if ($user->role === 'employer') {
+            return in_array($creatorRole, ['manager', 'super_admin'], true) || !$creatorRole;
+        }
+
+        if ($user->role === 'employee') {
+            return $creatorRole === 'employer' || !$creatorRole;
+        }
+
+        return false;
+    }
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -29,11 +48,13 @@ class TaskController extends Controller
 
         if ($user && $user->role === 'employee') {
             $query->where('assigned_to', $user->id);
-        } elseif ($user && in_array($user->role, ['manager', 'employer'])) {
+        } elseif ($user && $user->role === 'employer') {
             $query->where(function ($taskQuery) use ($user) {
                 $taskQuery->where('assigned_to', $user->id)
                     ->orWhere('created_by', $user->id);
             });
+        } elseif ($user && $user->role === 'super_admin') {
+            // Super admins can audit the full task pipeline.
         }
 
         if ($request->has('status')) {
@@ -135,93 +156,29 @@ class TaskController extends Controller
         $user = $request->user();
         $task->loadMissing('creator', 'assignee');
         $originalStatus = $task->status;
-        $isManagerReviewFlowTask = $task->creator
-            && $task->creator->role === 'manager'
-            && $task->assignee
-            && $task->assignee->role === 'employer';
-        $isEmployerReviewFlowTask = $task->creator
-            && $task->creator->role === 'employer'
-            && $task->assignee
-            && $task->assignee->role === 'employee';
+        $isSubmissionUpdate = $this->canRespondToTask($user, $task);
 
-        if ($user && $user->role === 'employee') {
-            abort_unless($task->assigned_to === $user->id, 403, 'Forbidden');
-
+        if ($isSubmissionUpdate) {
             $validated = $request->validate([
-                'status' => 'required|in:pending,in_progress,pending_review,completed',
-                'submission_text' => 'nullable|string|max:2000',
+                'status' => 'required|in:pending_review',
+                'submission_text' => 'required|string|max:2000',
                 'attachments' => 'nullable|array|max:5',
                 'attachments.*' => 'file|max:10240',
             ]);
 
-            if (array_key_exists('status', $validated) && $isEmployerReviewFlowTask) {
-                if ($validated['status'] === Task::STATUS_COMPLETED) {
-                    return response()->json(['message' => 'Employee cannot complete this task directly. Submit it to the employer for review.'], 422);
-                }
-
-                $allowedEmployeeStatuses = [Task::STATUS_PENDING, Task::STATUS_IN_PROGRESS, Task::STATUS_PENDING_REVIEW];
-                if (!in_array($validated['status'], $allowedEmployeeStatuses, true)) {
-                    return response()->json(['message' => 'Employee can only update this task to pending, in progress, or pending review.'], 422);
-                }
+            if ($task->status === Task::STATUS_COMPLETED) {
+                return response()->json(['message' => 'Completed tasks cannot be submitted again.'], 422);
             }
         } else {
-            abort_unless($this->canAssign($user), 403, 'Forbidden');
-
-            if ($isManagerReviewFlowTask) {
-                $canTouchManagerTask = ($user->role === 'manager' && $task->created_by === $user->id)
-                    || ($user->role === 'employer' && $task->assigned_to === $user->id);
-
-                abort_unless($canTouchManagerTask || $user->role === 'super_admin', 403, 'Forbidden');
-            }
-
-            if ($isEmployerReviewFlowTask) {
-                $canTouchEmployerTask = $user->role === 'employer' && $task->created_by === $user->id;
-
-                abort_unless($canTouchEmployerTask || $user->role === 'super_admin', 403, 'Forbidden');
-            }
+            abort_unless($user && in_array($user->role, ['manager', 'super_admin'], true), 403, 'Only managers can change task status manually.');
 
             $validated = $request->validate([
-                'title' => 'string|max:255',
-                'description' => 'string',
-                'status' => 'in:pending,in_progress,pending_review,completed',
-                'priority' => 'in:low,medium,high,critical',
-                'assigned_to' => 'exists:users,id',
-                'submission_text' => 'nullable|string|max:2000',
-                'attachments' => 'nullable|array|max:5',
-                'attachments.*' => 'file|max:10240',
+                'title' => 'sometimes|string|max:255',
+                'description' => 'sometimes|string',
+                'status' => 'sometimes|in:pending,in_progress,pending_review,completed',
+                'priority' => 'sometimes|in:low,medium,high,critical',
+                'assigned_to' => 'sometimes|exists:users,id',
             ]);
-
-            if (array_key_exists('status', $validated)
-                && $isManagerReviewFlowTask
-            ) {
-                if ($user->role === 'employer' && $task->assigned_to === $user->id && $validated['status'] === Task::STATUS_COMPLETED) {
-                    return response()->json(['message' => 'Employer cannot complete this task directly. Submit it for review.'], 422);
-                }
-
-                if ($validated['status'] === Task::STATUS_COMPLETED && $user->role !== 'manager') {
-                    return response()->json(['message' => 'Only the manager can complete and review this task.'], 403);
-                }
-
-                if ($user->role === 'employer' && $task->assigned_to === $user->id) {
-                    $allowedEmployerStatuses = [Task::STATUS_PENDING, Task::STATUS_IN_PROGRESS, Task::STATUS_PENDING_REVIEW];
-                    if (!in_array($validated['status'], $allowedEmployerStatuses, true)) {
-                        return response()->json(['message' => 'Employer can only update this task to pending, in progress, or pending review.'], 422);
-                    }
-                }
-            }
-
-            if (array_key_exists('status', $validated) && $isEmployerReviewFlowTask) {
-                if ($validated['status'] === Task::STATUS_COMPLETED && !($user->role === 'employer' && $task->created_by === $user->id)) {
-                    return response()->json(['message' => 'Only the assigning employer can complete and review this task.'], 403);
-                }
-
-                if ($user->role === 'employer' && $task->created_by === $user->id) {
-                    $allowedEmployerStatuses = [Task::STATUS_PENDING, Task::STATUS_IN_PROGRESS, Task::STATUS_PENDING_REVIEW, Task::STATUS_COMPLETED];
-                    if (!in_array($validated['status'], $allowedEmployerStatuses, true)) {
-                        return response()->json(['message' => 'Employer can only update this task to pending, in progress, pending review, or completed.'], 422);
-                    }
-                }
-            }
         }
 
         $taskData = collect($validated)->except(['attachments', 'submission_text'])->all();
@@ -255,7 +212,7 @@ class TaskController extends Controller
             if ($validated['status'] === Task::STATUS_PENDING_REVIEW) {
                 $this->notificationDispatch->send(
                     $task->creator,
-                    ($user->name ?? 'A user') . ' sent task "' . $task->title . '" for review.',
+                    ($user->name ?? 'A user') . ' submitted task "' . $task->title . '" for review.',
                     Notification::TYPE_TASK_COMPLETED,
                     $task->id,
                     $user?->id

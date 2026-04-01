@@ -91,13 +91,6 @@ export const TaskList = ({
     }
   };
 
-  const respondToManager = async (taskId, newStatus) => {
-    setRespondingTaskId(taskId);
-    await updateTaskStatus(taskId, newStatus);
-    setRespondingTaskId(null);
-    setExpandedTaskId(null);
-  };
-
   const handleTaskFileChange = (taskId, files) => {
     const selectedFiles = Array.from(files || []).slice(0, 5);
     setTaskFiles((prev) => ({ ...prev, [taskId]: selectedFiles }));
@@ -112,10 +105,17 @@ export const TaskList = ({
     setTaskError('');
 
     try {
+      const submissionText = (taskTexts[taskId] || '').trim();
+
+      if (!submissionText) {
+        setTaskError('Please add your response before submitting the task.');
+        return;
+      }
+
       const formData = new FormData();
       formData.append('_method', 'PUT');
       formData.append('status', status);
-      formData.append('submission_text', taskTexts[taskId] || '');
+      formData.append('submission_text', submissionText);
 
       (taskFiles[taskId] || []).forEach((file) => {
         formData.append('attachments[]', file);
@@ -138,9 +138,10 @@ export const TaskList = ({
         ? Object.values(error.response.data.errors).flat().join(' ')
         : error.response?.data?.message || 'Error updating task';
       setTaskError(err);
+      return;
+    } finally {
+      setRespondingTaskId(null);
     }
-
-    setRespondingTaskId(null);
   };
 
   const priorityBadge = (p) => {
@@ -157,23 +158,14 @@ export const TaskList = ({
   };
 
   const canUpdateStatus = (task) => {
-    const isManagerReviewFlowTask = task.creator?.role === 'manager' && task.assignee?.role === 'employer';
-    const isEmployerReviewFlowTask = task.creator?.role === 'employer' && task.assignee?.role === 'employee';
-
-    if (userRole === 'employee') {
-      return false;
-    }
-
-    if (userRole === 'employer') {
-      return isEmployerReviewFlowTask && task.created_by === currentUserId;
-    }
-
-    if (userRole === 'manager') {
-      return isManagerReviewFlowTask && task.created_by === currentUserId;
-    }
-
-    return false;
+    return userRole === 'manager';
   };
+
+  const sameId = (left, right) => Number(left) === Number(right);
+
+  const isActionableTaskStatus = (status) => (
+    status === 'pending' || status === 'in_progress'
+  );
 
   const statusOptions = (task) => {
     if (userRole === 'employee') {
@@ -193,20 +185,7 @@ export const TaskList = ({
     }
 
     if (userRole === 'employer') {
-      if (task.creator?.role === 'employer' && task.assignee?.role === 'employee') {
-        return [
-          { value: 'pending', label: 'Pending' },
-          { value: 'in_progress', label: 'In Progress' },
-          { value: 'pending_review', label: 'Pending Review' },
-          { value: 'completed', label: 'Completed (Reviewed)' },
-        ];
-      }
-
-      return [
-        { value: 'pending', label: 'Pending' },
-        { value: 'in_progress', label: 'In Progress' },
-        { value: 'pending_review', label: 'Pending Review' },
-      ];
+      return [];
     }
 
     if (userRole === 'manager') {
@@ -223,16 +202,20 @@ export const TaskList = ({
 
   const isPendingManagerTaskForEmployer = (task) => (
     userRole === 'employer'
-    && task.assigned_to === currentUserId
-    && task.status !== 'completed'
-    && (task.creator?.role === 'manager' || !task.creator?.role)
+    && sameId(task.assigned_to, currentUserId)
+    && isActionableTaskStatus(task.status)
+    && (task.creator?.role === 'manager' || task.creator?.role === 'super_admin' || !task.creator?.role)
   );
 
   const isActionableEmployerTaskForEmployee = (task) => (
     userRole === 'employee'
-    && task.assigned_to === currentUserId
+    && sameId(task.assigned_to, currentUserId)
     && (task.creator?.role === 'employer' || !task.creator?.role)
-    && (task.status === 'pending' || task.status === 'in_progress')
+    && isActionableTaskStatus(task.status)
+  );
+
+  const canDoTask = (task) => (
+    isPendingManagerTaskForEmployer(task) || isActionableEmployerTaskForEmployee(task)
   );
 
   const extractSubmissionNotes = (description) => {
@@ -257,7 +240,7 @@ export const TaskList = ({
     userRole === 'employer'
     && task.assignee?.role === 'employee'
     && task.creator?.role === 'employer'
-    && task.created_by === currentUserId
+    && sameId(task.created_by, currentUserId)
     && (task.status === 'in_progress' || task.status === 'pending_review')
   );
 
@@ -558,19 +541,11 @@ export const TaskList = ({
                           <div className="flex flex-wrap gap-2">
                           <button
                             type="button"
-                            onClick={() => submitTaskWithFiles(task.id, 'in_progress')}
-                            disabled={respondingTaskId === task.id}
-                            className="ta-btn-secondary !px-3 !py-1 !text-xs disabled:opacity-60"
-                          >
-                            Start Task
-                          </button>
-                          <button
-                            type="button"
                             onClick={() => submitTaskWithFiles(task.id, 'pending_review')}
                             disabled={respondingTaskId === task.id}
                             className="ta-btn-primary !px-3 !py-1 !text-xs disabled:opacity-60"
                           >
-                            Send to Manager
+                            Submit to Manager
                           </button>
                         </div>
                         </div>
@@ -605,23 +580,13 @@ export const TaskList = ({
                             )}
                           </div>
                           <div className="flex flex-wrap gap-2">
-                            {task.status === 'pending' && (
-                              <button
-                                type="button"
-                                onClick={() => submitTaskWithFiles(task.id, 'in_progress')}
-                                disabled={respondingTaskId === task.id}
-                                className="ta-btn-secondary !px-3 !py-1 !text-xs disabled:opacity-60"
-                              >
-                                Start Task
-                              </button>
-                            )}
                             <button
                               type="button"
                               onClick={() => submitTaskWithFiles(task.id, 'pending_review')}
                               disabled={respondingTaskId === task.id}
                               className="ta-btn-primary !px-3 !py-1 !text-xs disabled:opacity-60"
                             >
-                              Send to Employer
+                              Submit to Employer
                             </button>
                           </div>
                         </div>
@@ -641,20 +606,19 @@ export const TaskList = ({
                     <td className="py-4 pr-4">
                       <div className="flex items-center gap-2">
                         <span className={statusBadge(task.status)}>{task.status?.replace('_', ' ')}</span>
-                        {(isPendingManagerTaskForEmployer(task) || isActionableEmployerTaskForEmployee(task)) && (
+                      </div>
+                    </td>
+                    {(userRole === 'employee' || userRole === 'employer' || userRole === 'manager') && (
+                      <td className="py-4 min-w-[180px]">
+                        {canDoTask(task) ? (
                           <button
                             type="button"
                             onClick={() => setExpandedTaskId((prev) => (prev === task.id ? null : task.id))}
-                            className="ta-btn-primary !px-2 !py-1 !text-xs"
+                            className="ta-btn-primary !px-3 !py-1.5 !text-xs"
                           >
                             {expandedTaskId === task.id ? 'Hide' : 'Do Task'}
                           </button>
-                        )}
-                      </div>
-                    </td>
-                    {(userRole === 'employer' || userRole === 'manager') && (
-                      <td className="py-4 min-w-[180px]">
-                        {canUpdateStatus(task) ? (
+                        ) : canUpdateStatus(task) ? (
                           <select
                             value={task.status}
                             onChange={(e) => updateTaskStatus(task.id, e.target.value)}
