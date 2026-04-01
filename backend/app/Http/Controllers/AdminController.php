@@ -467,15 +467,14 @@ class AdminController extends Controller
             DB::table('employer_groups')->delete();
             DB::table('companies')->delete();
 
-            // Keep super admins so dashboard access remains possible
-            DB::table('users')->where('role', '!=', 'super_admin')->delete();
+            // Keep users intact
 
             // Keep notification_channel_settings intact (SMTP/SMS settings)
             DB::statement('SET FOREIGN_KEY_CHECKS=1');
         });
 
         return response()->json([
-            'message' => 'All application data cleared. SMTP and SMS settings were preserved.',
+            'message' => 'All application data cleared except users, SMTP settings, and SMS settings.',
         ]);
     }
 }

@@ -958,7 +958,7 @@ export const SuperAdminDashboard = ({ onBrandingUpdated }) => {
         <div className="ta-card-header flex items-center justify-between">
           <div>
             <h3 className="font-semibold text-danger">Reset Data</h3>
-            <p className="mt-0.5 text-sm text-gray-400">Permanently delete all application data except SMTP and SMS settings. This action cannot be undone.</p>
+            <p className="mt-0.5 text-sm text-gray-400">Permanently delete all application data except users, SMTP and SMS settings. This action cannot be undone.</p>
           </div>
         </div>
         <div className="ta-card-body">
@@ -975,7 +975,7 @@ export const SuperAdminDashboard = ({ onBrandingUpdated }) => {
             disabled={resetting}
             className="ta-btn-danger disabled:opacity-60"
             onClick={async () => {
-              if (!window.confirm('Are you sure you want to permanently delete ALL application data except SMTP and SMS settings? This cannot be undone.')) return;
+              if (!window.confirm('Are you sure you want to permanently delete ALL application data except users, SMTP and SMS settings? This cannot be undone.')) return;
               setResetting(true);
               setResetMessage('');
               try {
