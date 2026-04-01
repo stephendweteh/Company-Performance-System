@@ -18,6 +18,7 @@ export const TaskList = ({
   const [respondingTaskId, setRespondingTaskId] = useState(null);
   const [taskFiles, setTaskFiles] = useState({});
   const [taskTexts, setTaskTexts] = useState({});
+  const [reviewRemarks, setReviewRemarks] = useState({});
   const [taskError, setTaskError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('due_date');
@@ -77,13 +78,14 @@ export const TaskList = ({
     setLoading(false);
   };
 
-  const updateTaskStatus = async (taskId, newStatus) => {
+  const updateTaskStatus = async (taskId, newStatus, extraPayload = {}) => {
     try {
       await axios.put(
         `/api/tasks/${taskId}`,
-        { status: newStatus },
+        { status: newStatus, ...extraPayload },
         { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
       );
+      setReviewRemarks((prev) => ({ ...prev, [taskId]: '' }));
       fetchTasks();
       onStatusChange && onStatusChange();
     } catch (error) {
@@ -98,6 +100,10 @@ export const TaskList = ({
 
   const handleTaskTextChange = (taskId, value) => {
     setTaskTexts((prev) => ({ ...prev, [taskId]: value }));
+  };
+
+  const handleReviewRemarkChange = (taskId, value) => {
+    setReviewRemarks((prev) => ({ ...prev, [taskId]: value }));
   };
 
   const submitTaskWithFiles = async (taskId, status) => {
@@ -157,8 +163,26 @@ export const TaskList = ({
     return map[s] || 'ta-badge-primary';
   };
 
+  const canEmployerReviewSubmittedTask = (task) => (
+    userRole === 'employer'
+    && task.assignee?.role === 'employee'
+    && sameId(task.created_by, currentUserId)
+    && task.status === 'pending_review'
+  );
+
+  const canManagerReviewSubmittedTask = (task) => (
+    userRole === 'manager'
+    && task.assignee?.role === 'employer'
+    && task.creator?.role === 'manager'
+    && task.status === 'pending_review'
+  );
+
   const canUpdateStatus = (task) => {
-    return userRole === 'manager';
+    if (userRole === 'manager') {
+      return true;
+    }
+
+    return canEmployerReviewSubmittedTask(task);
   };
 
   const sameId = (left, right) => Number(left) === Number(right);
@@ -185,6 +209,14 @@ export const TaskList = ({
     }
 
     if (userRole === 'employer') {
+      if (canEmployerReviewSubmittedTask(task)) {
+        return [
+          { value: 'pending_review', label: 'Pending Review' },
+          { value: 'in_progress', label: 'Needs Rework' },
+          { value: 'completed', label: 'Completed (Reviewed)' },
+        ];
+      }
+
       return [];
     }
 
@@ -218,15 +250,38 @@ export const TaskList = ({
     isPendingManagerTaskForEmployer(task) || isActionableEmployerTaskForEmployee(task)
   );
 
-  const extractSubmissionNotes = (description) => {
-    if (!description) return null;
-    const match = description.match(/Submission Note \([^)]+\)\n([\s\S]*?)(?=\n*$)/);
-    return match ? match[1].trim() : null;
+  const extractTaskNotes = (description) => {
+    if (!description) return [];
+
+    const notes = [];
+    const notePattern = /(Submission Note|Review Remark) \(([^)]+)\)\n([\s\S]*?)(?=\n\n(?:Submission Note|Review Remark) \(|$)/g;
+    let match;
+
+    while ((match = notePattern.exec(description)) !== null) {
+      notes.push({
+        type: match[1],
+        meta: match[2],
+        body: (match[3] || '').trim(),
+      });
+    }
+
+    return notes;
+  };
+
+  const extractLatestSubmissionNote = (description) => {
+    const notes = extractTaskNotes(description);
+    const latestSubmission = [...notes].reverse().find((note) => note.type === 'Submission Note');
+    return latestSubmission || null;
+  };
+
+  const extractAllReviewRemarks = (description) => {
+    const notes = extractTaskNotes(description);
+    return notes.filter((note) => note.type === 'Review Remark');
   };
 
   const getOriginalDescription = (description) => {
     if (!description) return '';
-    return description.split(/Submission Note \([^)]+\)/)[0].trim();
+    return description.split(/(Submission Note|Review Remark) \([^)]+\)/)[0].trim();
   };
 
   const isEmployerTaskWithSubmission = (task) => (
@@ -467,10 +522,10 @@ export const TaskList = ({
                           {getOriginalDescription(task.description) && (
                             <p className="mt-0.5 text-xs text-gray-400 line-clamp-2">{getOriginalDescription(task.description)}</p>
                           )}
-                          {(isEmployerTaskWithSubmission(task) || isEmployeeTaskWithSubmission(task)) && extractSubmissionNotes(task.description) && (
+                          {(isEmployerTaskWithSubmission(task) || isEmployeeTaskWithSubmission(task)) && extractLatestSubmissionNote(task.description) && (
                             <div className="mt-2 rounded bg-blue-50 border border-blue-100 p-2">
                               <p className="text-xs font-semibold text-blue-900">📋 {task.assignee?.name}:</p>
-                              <p className="mt-1 text-xs text-blue-800 line-clamp-3">{extractSubmissionNotes(task.description)}</p>
+                              <p className="mt-1 text-xs text-blue-800 line-clamp-3">{extractLatestSubmissionNote(task.description)?.body}</p>
                               <button
                                 type="button"
                                 onClick={() => setExpandedTaskId((prev) => (prev === task.id ? null : task.id))}
@@ -478,6 +533,19 @@ export const TaskList = ({
                               >
                                 {expandedTaskId === task.id ? 'Hide full response' : 'View full response'}
                               </button>
+                            </div>
+                          )}
+                          {(userRole === 'employee' || userRole === 'employer' || userRole === 'manager') && extractAllReviewRemarks(task.description).length > 0 && (
+                            <div className="mt-2 rounded border border-amber-200 bg-amber-50 p-2">
+                              <p className="text-xs font-semibold text-amber-900">🗒 Review Remarks:</p>
+                              <div className="mt-1 space-y-2">
+                                {extractAllReviewRemarks(task.description).map((remark, idx) => (
+                                  <div key={`${task.id}-review-remark-${idx}`} className="rounded border border-amber-200 bg-amber-100/40 p-2">
+                                    <p className="text-[11px] text-amber-900">{remark.meta}</p>
+                                    <p className="mt-1 text-xs text-amber-800 whitespace-pre-wrap">{remark.body}</p>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           )}
                         </>
@@ -501,10 +569,10 @@ export const TaskList = ({
                       )}
                       {expandedTaskId === task.id && (isEmployerTaskWithSubmission(task) || isEmployeeTaskWithSubmission(task)) && (
                         <div className="mt-3 space-y-2 rounded border border-blue-200 bg-blue-50 p-3">
-                          {extractSubmissionNotes(task.description) && (
+                          {extractLatestSubmissionNote(task.description) && (
                             <div>
                               <p className="text-xs font-semibold text-blue-900">{task.assignee?.name}'s Full Response:</p>
-                              <p className="mt-1.5 whitespace-pre-wrap text-xs text-blue-800">{extractSubmissionNotes(task.description)}</p>
+                              <p className="mt-1.5 whitespace-pre-wrap text-xs text-blue-800">{extractLatestSubmissionNote(task.description)?.body}</p>
                             </div>
                           )}
                         </div>
@@ -618,6 +686,66 @@ export const TaskList = ({
                           >
                             {expandedTaskId === task.id ? 'Hide' : 'Do Task'}
                           </button>
+                        ) : canEmployerReviewSubmittedTask(task) ? (
+                          <div className="space-y-2">
+                            <textarea
+                              value={reviewRemarks[task.id] || ''}
+                              onChange={(e) => handleReviewRemarkChange(task.id, e.target.value)}
+                              className="ta-input !py-1.5 !text-xs"
+                              rows={3}
+                              placeholder="Optional review remark for the employee"
+                            />
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => updateTaskStatus(task.id, 'in_progress', {
+                                  review_remark: (reviewRemarks[task.id] || '').trim(),
+                                })}
+                                className="ta-btn-secondary !px-3 !py-1.5 !text-xs"
+                              >
+                                Needs Rework
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => updateTaskStatus(task.id, 'completed', {
+                                  review_remark: (reviewRemarks[task.id] || '').trim(),
+                                })}
+                                className="ta-btn-primary !px-3 !py-1.5 !text-xs"
+                              >
+                                Mark Completed
+                              </button>
+                            </div>
+                          </div>
+                        ) : canManagerReviewSubmittedTask(task) ? (
+                          <div className="space-y-2">
+                            <textarea
+                              value={reviewRemarks[task.id] || ''}
+                              onChange={(e) => handleReviewRemarkChange(task.id, e.target.value)}
+                              className="ta-input !py-1.5 !text-xs"
+                              rows={3}
+                              placeholder="Optional review remark for the employer"
+                            />
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => updateTaskStatus(task.id, 'in_progress', {
+                                  review_remark: (reviewRemarks[task.id] || '').trim(),
+                                })}
+                                className="ta-btn-secondary !px-3 !py-1.5 !text-xs"
+                              >
+                                Needs Rework
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => updateTaskStatus(task.id, 'completed', {
+                                  review_remark: (reviewRemarks[task.id] || '').trim(),
+                                })}
+                                className="ta-btn-primary !px-3 !py-1.5 !text-xs"
+                              >
+                                Mark Completed
+                              </button>
+                            </div>
+                          </div>
                         ) : canUpdateStatus(task) ? (
                           <select
                             value={task.status}

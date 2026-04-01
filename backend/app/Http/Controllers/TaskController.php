@@ -41,6 +41,23 @@ class TaskController extends Controller
         return false;
     }
 
+    protected function canEmployerReviewTask($user, Task $task)
+    {
+        if (!$user || $user->role !== 'employer') {
+            return false;
+        }
+
+        if ((int) $task->created_by !== (int) $user->id) {
+            return false;
+        }
+
+        if ($task->assignee?->role !== 'employee') {
+            return false;
+        }
+
+        return $task->status === Task::STATUS_PENDING_REVIEW;
+    }
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -157,6 +174,7 @@ class TaskController extends Controller
         $task->loadMissing('creator', 'assignee');
         $originalStatus = $task->status;
         $isSubmissionUpdate = $this->canRespondToTask($user, $task);
+        $isEmployerReviewUpdate = $this->canEmployerReviewTask($user, $task);
 
         if ($isSubmissionUpdate) {
             $validated = $request->validate([
@@ -169,6 +187,11 @@ class TaskController extends Controller
             if ($task->status === Task::STATUS_COMPLETED) {
                 return response()->json(['message' => 'Completed tasks cannot be submitted again.'], 422);
             }
+        } elseif ($isEmployerReviewUpdate) {
+            $validated = $request->validate([
+                'status' => 'required|in:in_progress,completed',
+                'review_remark' => 'nullable|string|max:2000',
+            ]);
         } else {
             abort_unless($user && in_array($user->role, ['manager', 'super_admin'], true), 403, 'Only managers can change task status manually.');
 
@@ -178,6 +201,7 @@ class TaskController extends Controller
                 'status' => 'sometimes|in:pending,in_progress,pending_review,completed',
                 'priority' => 'sometimes|in:low,medium,high,critical',
                 'assigned_to' => 'sometimes|exists:users,id',
+                'review_remark' => 'nullable|string|max:2000',
             ]);
         }
 
@@ -192,6 +216,15 @@ class TaskController extends Controller
             $submissionBody = trim($validated['submission_text']);
 
             $task->description = trim($existingDescription . "\n\n" . $submissionHeader . "\n" . $submissionBody);
+            $task->save();
+        }
+
+        if (!empty($validated['review_remark'])) {
+            $existingDescription = trim((string) $task->description);
+            $reviewHeader = 'Review Remark (' . ($user->name ?? 'Reviewer') . ' - ' . now()->format('Y-m-d H:i') . ')';
+            $reviewBody = trim($validated['review_remark']);
+
+            $task->description = trim($existingDescription . "\n\n" . $reviewHeader . "\n" . $reviewBody);
             $task->save();
         }
 
