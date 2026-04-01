@@ -8,6 +8,9 @@ export const TaskList = ({
   currentUserId,
   refreshKey = 0,
   focusedTaskId = null,
+  canCreateTask = false,
+  forceFullscreenToken = 0,
+  onNewTaskClick,
   onStatusChange,
   pendingOnly = false,
   onClearPendingOnly,
@@ -61,6 +64,14 @@ export const TaskList = ({
       row?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
   }, [focusedTaskId, tasks]);
+
+  useEffect(() => {
+    if (!forceFullscreenToken) {
+      return;
+    }
+
+    setIsFullscreen(true);
+  }, [forceFullscreenToken]);
 
   const fetchTasks = async () => {
     setLoading(true);
@@ -419,6 +430,18 @@ export const TaskList = ({
           >
             {isFullscreen ? '⊠ Collapse' : '⛶ Expand'}
           </button>
+          {canCreateTask && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsFullscreen(false);
+                onNewTaskClick && onNewTaskClick();
+              }}
+              className="ta-btn-primary !px-3 !py-1.5 !text-xs"
+            >
+              + New Task
+            </button>
+          )}
         </div>
         <span className="text-sm text-gray-400">{tasks.length} task{tasks.length !== 1 ? 's' : ''}</span>
       </div>

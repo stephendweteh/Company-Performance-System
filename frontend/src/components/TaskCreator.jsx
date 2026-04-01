@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../services/api';
 
-export const TaskCreator = ({ userRole, selectedDate, onTaskCreated }) => {
+export const TaskCreator = ({ userRole, selectedDate, openFormToken = 0, onTaskCreated, onHideRequested }) => {
   const [employees, setEmployees] = useState([]);
   const [teams, setTeams] = useState([]);
   const [formData, setFormData] = useState({
@@ -38,6 +38,14 @@ export const TaskCreator = ({ userRole, selectedDate, onTaskCreated }) => {
       due_date: dateValue,
     }));
   }, [selectedDate, userRole]);
+
+  useEffect(() => {
+    if (!openFormToken) {
+      return;
+    }
+
+    setShowForm(true);
+  }, [openFormToken]);
 
   const fetchEmployees = async () => {
     try {
@@ -109,6 +117,7 @@ export const TaskCreator = ({ userRole, selectedDate, onTaskCreated }) => {
       });
       setAttachments([]);
       setShowForm(false);
+      onHideRequested && onHideRequested();
       onTaskCreated && onTaskCreated();
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
@@ -124,7 +133,18 @@ export const TaskCreator = ({ userRole, selectedDate, onTaskCreated }) => {
     <div className="ta-card mb-6">
       <div className="ta-card-header flex items-center justify-between">
         <h3 className="font-semibold text-sidebar">Assign Task</h3>
-        <button onClick={() => setShowForm(!showForm)} className={showForm ? 'ta-btn-secondary' : 'ta-btn-primary'}>
+        <button
+          onClick={() => {
+            if (showForm) {
+              setShowForm(false);
+              onHideRequested && onHideRequested();
+              return;
+            }
+
+            setShowForm(true);
+          }}
+          className={showForm ? 'ta-btn-secondary' : 'ta-btn-primary'}
+        >
           {showForm ? 'Cancel' : '+ New Task'}
         </button>
       </div>

@@ -34,6 +34,9 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [taskRefreshKey, setTaskRefreshKey] = useState(0);
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
+  const [showTaskCreator, setShowTaskCreator] = useState(true);
+  const [taskCreatorOpenToken, setTaskCreatorOpenToken] = useState(0);
+  const [taskListFullscreenToken, setTaskListFullscreenToken] = useState(0);
   const [branding, setBranding] = useState(defaultBranding);
   const { user, refreshUser } = useContext(AuthContext);
   const canAssignTasks = ['employer', 'manager', 'super_admin'].includes(user?.role);
@@ -51,8 +54,20 @@ function App() {
       setFocusedTaskId(null);
       setFocusedReportId(null);
       setFocusedWinId(null);
+      setShowTaskCreator(true);
+      setTaskCreatorOpenToken(0);
+      setTaskListFullscreenToken(0);
     }
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!canAssignTasks) {
+      setShowTaskCreator(false);
+      return;
+    }
+
+    setShowTaskCreator(true);
+  }, [canAssignTasks]);
 
   useEffect(() => {
     const handleNotificationNavigate = (event) => {
@@ -133,7 +148,18 @@ function App() {
 
     if (['manager', 'employer'].includes(user?.role)) {
       setEmployeePendingFocus(false);
+      setShowTaskCreator(true);
+      setTaskCreatorOpenToken((prev) => prev + 1);
       setActiveTab('tasks');
+    }
+  };
+
+  const handleSidebarTabChange = (tab) => {
+    setActiveTab(tab);
+
+    if (tab === 'tasks' && canAssignTasks) {
+      setShowTaskCreator(false);
+      setTaskListFullscreenToken((prev) => prev + 1);
     }
   };
 
@@ -168,7 +194,7 @@ function App() {
       {/* Sidebar */}
       <Sidebar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleSidebarTabChange}
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
         branding={branding}
@@ -228,11 +254,13 @@ function App() {
 
           {/* ── Tasks ── */}
           {activeTab === 'tasks' && (
-            <div className={canAssignTasks ? 'grid grid-cols-1 xl:grid-cols-2 gap-6' : 'w-full'}>
-              {canAssignTasks && (
+            <div className={canAssignTasks && showTaskCreator ? 'grid grid-cols-1 xl:grid-cols-2 gap-6' : 'w-full'}>
+              {canAssignTasks && showTaskCreator && (
                 <TaskCreator
                   userRole={user?.role}
                   selectedDate={selectedDate}
+                  openFormToken={taskCreatorOpenToken}
+                  onHideRequested={() => setShowTaskCreator(false)}
                   onTaskCreated={() => { setTaskRefreshKey((prev) => prev + 1); setCalendarRefreshKey((prev) => prev + 1); }}
                 />
               )}
@@ -242,6 +270,12 @@ function App() {
                 currentUserId={user?.id}
                 refreshKey={taskRefreshKey}
                 focusedTaskId={focusedTaskId}
+                canCreateTask={canAssignTasks}
+                forceFullscreenToken={taskListFullscreenToken}
+                onNewTaskClick={() => {
+                  setShowTaskCreator(true);
+                  setTaskCreatorOpenToken((prev) => prev + 1);
+                }}
                 onStatusChange={() => setCalendarRefreshKey((prev) => prev + 1)}
                 pendingOnly={user?.role === 'employee' && employeePendingFocus}
                 onClearPendingOnly={() => setEmployeePendingFocus(false)}

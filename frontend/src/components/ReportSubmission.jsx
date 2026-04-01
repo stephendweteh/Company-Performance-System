@@ -19,6 +19,7 @@ export const ReportSubmission = ({ selectedDate, userRole, currentUserId, focuse
   const [reportSortBy, setReportSortBy] = useState('report_date');
   const [reportSortDir, setReportSortDir] = useState('desc');
   const [showAllReports, setShowAllReports] = useState(false);
+  const [isReportsFullscreen, setIsReportsFullscreen] = useState(false);
   const reportScopedRoles = ['employee', 'employer', 'manager'];
 
   const canSubmit = ['employee', 'employer'].includes(userRole);
@@ -296,7 +297,7 @@ export const ReportSubmission = ({ selectedDate, userRole, currentUserId, focuse
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-      <div className="ta-card">
+      <div className={isReportsFullscreen ? 'fixed inset-0 z-50 flex flex-col bg-white dark:bg-boxdark overflow-auto p-6 shadow-2xl' : 'ta-card'}>
         <div className="ta-card-header">
           <div className="mb-4 flex flex-col gap-3">
             <div className="flex items-center justify-between">
@@ -310,6 +311,13 @@ export const ReportSubmission = ({ selectedDate, userRole, currentUserId, focuse
                       : 'Submitted Reports'}
               </h3>
               <div className="flex items-center gap-2">
+                <button
+                  className="ta-btn-secondary"
+                  title={isReportsFullscreen ? 'Collapse' : 'Expand to full screen'}
+                  onClick={() => setIsReportsFullscreen((prev) => !prev)}
+                >
+                  {isReportsFullscreen ? '⊠ Collapse' : '⛶ Expand'}
+                </button>
                 {reportScopedRoles.includes(userRole) && (
                   <button
                     className="ta-btn-secondary"

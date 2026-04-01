@@ -17,6 +17,7 @@ export const WinsRecorder = ({ selectedDate, userRole, focusedWinId = null, onWi
   const [sortBy, setSortBy] = useState('date');
   const [sortDir, setSortDir] = useState('desc');
   const [filterStatus, setFilterStatus] = useState('');
+  const [isAchievementsFullscreen, setIsAchievementsFullscreen] = useState(false);
 
   const canSubmit = ['employee', 'employer'].includes(userRole);
   const renderStars = (score) => {
@@ -286,10 +287,17 @@ export const WinsRecorder = ({ selectedDate, userRole, focusedWinId = null, onWi
         </div>
       </div>
 
-      <div className="ta-card">
+      <div className={isAchievementsFullscreen ? 'fixed inset-0 z-50 flex flex-col bg-white dark:bg-boxdark overflow-auto p-6 shadow-2xl' : 'ta-card'}>
         <div className="ta-card-header flex items-center justify-between">
           <h3 className="font-semibold text-sidebar">Achievements</h3>
           <div className="flex gap-2">
+            <button
+              className="ta-btn-secondary"
+              title={isAchievementsFullscreen ? 'Collapse' : 'Expand to full screen'}
+              onClick={() => setIsAchievementsFullscreen((prev) => !prev)}
+            >
+              {isAchievementsFullscreen ? '⊠ Collapse' : '⛶ Expand'}
+            </button>
             <button className="ta-btn-secondary" onClick={exportWinsCSV}>
               📥 Export CSV
             </button>
