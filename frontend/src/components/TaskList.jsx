@@ -412,9 +412,9 @@ export const TaskList = ({
   };
 
   return (
-    <div className={isFullscreen ? 'fixed inset-0 z-50 flex flex-col bg-white dark:bg-boxdark overflow-auto p-6 shadow-2xl' : 'ta-card'}>
-      <div className="ta-card-header flex items-center justify-between">
-        <div className="flex items-center gap-3">
+    <div className={isFullscreen ? 'fixed inset-0 z-50 flex flex-col bg-white dark:bg-boxdark overflow-auto p-3 sm:p-6 shadow-2xl' : 'ta-card'}>
+      <div className="ta-card-header flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <h2 className="font-semibold text-sidebar">
             {isManagerViewingAllTasks
               ? 'All Tasks'
@@ -443,7 +443,7 @@ export const TaskList = ({
             </button>
           )}
         </div>
-        <span className="text-sm text-gray-400">{tasks.length} task{tasks.length !== 1 ? 's' : ''}</span>
+        <span className="text-sm text-gray-400 sm:text-right">{tasks.length} task{tasks.length !== 1 ? 's' : ''}</span>
       </div>
       <div className="ta-card-body">
         {pendingOnly && userRole === 'employee' && (
@@ -525,7 +525,7 @@ export const TaskList = ({
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[860px] text-sm">
               <thead>
                 <tr className="border-b border-stroke">
                   <th className="pb-3 text-left font-semibold text-gray-500">Task</th>
@@ -544,7 +544,7 @@ export const TaskList = ({
                     data-task-id={task.id}
                     className={`group transition-colors ${focusedTaskId === task.id ? 'bg-primary/5 ring-1 ring-primary/20' : 'hover:bg-whiten'}`}
                   >
-                    <td className="py-4 pr-4">
+                    <td className="min-w-[280px] py-4 pr-4">
                       <p className="font-medium text-sidebar">{task.title}</p>
                       {userRole === 'manager' ? (
                         task.assignee?.name && <p className="mt-1 text-xs text-gray-400">Assigned to: {task.assignee.name}</p>
@@ -613,10 +613,10 @@ export const TaskList = ({
                         {priorityLabel(task.priority)}
                       </span>
                     </td>
-                    <td className="py-4 pr-4 text-gray-500">
+                    <td className="min-w-[120px] py-4 pr-4 text-gray-500">
                       {task.due_date ? new Date(task.due_date).toLocaleDateString() : '—'}
                     </td>
-                    <td className="py-4 pr-4">
+                    <td className="min-w-[130px] py-4 pr-4">
                       <div className="flex items-center gap-2">
                         <span className={statusBadge(task.status)}>{task.status?.replace('_', ' ')}</span>
                       </div>
