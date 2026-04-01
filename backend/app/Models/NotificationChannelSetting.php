@@ -78,6 +78,6 @@ class NotificationChannelSetting extends Model
 
     public function getAppLogoUrlAttribute()
     {
-        return $this->app_logo_path ? '/storage/'.$this->app_logo_path : null;
+        return $this->app_logo_path ? url('/storage/'.$this->app_logo_path) : null;
     }
 }

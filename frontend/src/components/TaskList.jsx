@@ -224,14 +224,14 @@ export const TaskList = ({
   const isPendingManagerTaskForEmployer = (task) => (
     userRole === 'employer'
     && task.assigned_to === currentUserId
-    && task.creator?.role === 'manager'
-    && task.status === 'pending'
+    && task.status !== 'completed'
+    && (task.creator?.role === 'manager' || !task.creator?.role)
   );
 
   const isActionableEmployerTaskForEmployee = (task) => (
     userRole === 'employee'
     && task.assigned_to === currentUserId
-    && task.creator?.role === 'employer'
+    && (task.creator?.role === 'employer' || !task.creator?.role)
     && (task.status === 'pending' || task.status === 'in_progress')
   );
 
