@@ -24,6 +24,7 @@ export const TaskList = ({
   const [sortBy, setSortBy] = useState('due_date');
   const [sortDir, setSortDir] = useState('asc');
   const [showAllTasks, setShowAllTasks] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const isManagerViewingAllTasks = userRole === 'manager' && showAllTasks;
 
   useEffect(() => {
@@ -400,15 +401,25 @@ export const TaskList = ({
   };
 
   return (
-    <div className="ta-card">
+    <div className={isFullscreen ? 'fixed inset-0 z-50 flex flex-col bg-white dark:bg-boxdark overflow-auto p-6 shadow-2xl' : 'ta-card'}>
       <div className="ta-card-header flex items-center justify-between">
-        <h2 className="font-semibold text-sidebar">
-          {isManagerViewingAllTasks
-            ? 'All Tasks'
-            : selectedDate
-              ? `Tasks — ${selectedDate.toDateString()}`
-              : 'Tasks'}
-        </h2>
+        <div className="flex items-center gap-3">
+          <h2 className="font-semibold text-sidebar">
+            {isManagerViewingAllTasks
+              ? 'All Tasks'
+              : selectedDate
+                ? `Tasks — ${selectedDate.toDateString()}`
+                : 'Tasks'}
+          </h2>
+          <button
+            type="button"
+            title={isFullscreen ? 'Collapse' : 'Expand to full screen'}
+            onClick={() => setIsFullscreen((prev) => !prev)}
+            className="rounded border border-stroke px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-meta-4 transition-colors"
+          >
+            {isFullscreen ? '⊠ Collapse' : '⛶ Expand'}
+          </button>
+        </div>
         <span className="text-sm text-gray-400">{tasks.length} task{tasks.length !== 1 ? 's' : ''}</span>
       </div>
       <div className="ta-card-body">
@@ -505,8 +516,8 @@ export const TaskList = ({
               </thead>
               <tbody className="divide-y divide-stroke">
                 {sortTasks(filterTasks()).map((task) => (
+                  <React.Fragment key={task.id}>
                   <tr
-                    key={task.id}
                     data-task-id={task.id}
                     className={`group transition-colors ${focusedTaskId === task.id ? 'bg-primary/5 ring-1 ring-primary/20' : 'hover:bg-whiten'}`}
                   >
@@ -567,98 +578,9 @@ export const TaskList = ({
                           ))}
                         </div>
                       )}
-                      {expandedTaskId === task.id && (isEmployerTaskWithSubmission(task) || isEmployeeTaskWithSubmission(task)) && (
-                        <div className="mt-3 space-y-2 rounded border border-blue-200 bg-blue-50 p-3">
-                          {extractLatestSubmissionNote(task.description) && (
-                            <div>
-                              <p className="text-xs font-semibold text-blue-900">{task.assignee?.name}'s Full Response:</p>
-                              <p className="mt-1.5 whitespace-pre-wrap text-xs text-blue-800">{extractLatestSubmissionNote(task.description)?.body}</p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {expandedTaskId === task.id && isPendingManagerTaskForEmployer(task) && (
-                        <div className="mt-3 space-y-3 rounded border border-stroke p-3">
-                          {taskError && (
-                            <p className="text-xs text-danger">{taskError}</p>
-                          )}
-                          <div>
-                            <label className="ta-label !mb-1">Task Update / Notes</label>
-                            <textarea
-                              value={taskTexts[task.id] || ''}
-                              onChange={(e) => handleTaskTextChange(task.id, e.target.value)}
-                              className="ta-input !py-1.5 !text-xs"
-                              rows={3}
-                              placeholder="Write what you have done or need from the manager"
-                            />
-                          </div>
-                          <div>
-                            <label className="ta-label !mb-1">Attach Work Files (optional)</label>
-                            <input
-                              type="file"
-                              multiple
-                              onChange={(e) => handleTaskFileChange(task.id, e.target.files)}
-                              className="ta-input !py-1.5 !text-xs"
-                            />
-                            {(taskFiles[task.id] || []).length > 0 && (
-                              <p className="mt-1 text-xs text-gray-500">
-                                {(taskFiles[task.id] || []).length} file(s) selected
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => submitTaskWithFiles(task.id, 'pending_review')}
-                            disabled={respondingTaskId === task.id}
-                            className="ta-btn-primary !px-3 !py-1 !text-xs disabled:opacity-60"
-                          >
-                            Submit to Manager
-                          </button>
-                        </div>
-                        </div>
-                      )}
-                      {expandedTaskId === task.id && isActionableEmployerTaskForEmployee(task) && (
-                        <div className="mt-3 space-y-3 rounded border border-stroke p-3">
-                          {taskError && (
-                            <p className="text-xs text-danger">{taskError}</p>
-                          )}
-                          <div>
-                            <label className="ta-label !mb-1">Task Update / Notes</label>
-                            <textarea
-                              value={taskTexts[task.id] || ''}
-                              onChange={(e) => handleTaskTextChange(task.id, e.target.value)}
-                              className="ta-input !py-1.5 !text-xs"
-                              rows={3}
-                              placeholder="Write what you have done or any blocker for the employer"
-                            />
-                          </div>
-                          <div>
-                            <label className="ta-label !mb-1">Attach Work Files (optional)</label>
-                            <input
-                              type="file"
-                              multiple
-                              onChange={(e) => handleTaskFileChange(task.id, e.target.files)}
-                              className="ta-input !py-1.5 !text-xs"
-                            />
-                            {(taskFiles[task.id] || []).length > 0 && (
-                              <p className="mt-1 text-xs text-gray-500">
-                                {(taskFiles[task.id] || []).length} file(s) selected
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              onClick={() => submitTaskWithFiles(task.id, 'pending_review')}
-                              disabled={respondingTaskId === task.id}
-                              className="ta-btn-primary !px-3 !py-1 !text-xs disabled:opacity-60"
-                            >
-                              Submit to Employer
-                            </button>
-                          </div>
-                        </div>
-                      )}
+
+
+
                     </td>
                     <td className="py-4 pr-4">
                       <span
@@ -762,6 +684,110 @@ export const TaskList = ({
                       </td>
                     )}
                   </tr>
+                  {expandedTaskId === task.id && (
+                    <tr>
+                      <td colSpan={5} className="pb-4 pt-0 px-0">
+                        <div className="rounded-lg border border-blue-200 bg-blue-50 p-5 shadow-sm">
+                          {(isEmployerTaskWithSubmission(task) || isEmployeeTaskWithSubmission(task)) && extractLatestSubmissionNote(task.description) && (
+                            <div>
+                              <p className="text-sm font-semibold text-blue-900 mb-2">📋 {task.assignee?.name}'s Full Response:</p>
+                              <p className="whitespace-pre-wrap text-sm text-blue-800">{extractLatestSubmissionNote(task.description)?.body}</p>
+                              {task.attachments && task.attachments.length > 0 && (
+                                <div className="mt-3 space-y-1">
+                                  <p className="text-xs font-semibold text-gray-500">Attachments ({task.attachments.length}):</p>
+                                  {task.attachments.map((attachment, idx) => (
+                                    <a
+                                      key={idx}
+                                      href={`/storage/${attachment.file_path}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="block text-xs text-primary hover:underline"
+                                      title={attachment.file_name}
+                                    >
+                                      📎 {attachment.file_name}
+                                    </a>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {isPendingManagerTaskForEmployer(task) && (
+                            <div className="space-y-3">
+                              <p className="text-sm font-semibold text-gray-700">Submit Task Response</p>
+                              {taskError && <p className="text-xs text-danger">{taskError}</p>}
+                              <div>
+                                <label className="ta-label !mb-1">Task Update / Notes</label>
+                                <textarea
+                                  value={taskTexts[task.id] || ''}
+                                  onChange={(e) => handleTaskTextChange(task.id, e.target.value)}
+                                  className="ta-input !py-2 !text-sm"
+                                  rows={4}
+                                  placeholder="Write what you have done or need from the manager"
+                                />
+                              </div>
+                              <div>
+                                <label className="ta-label !mb-1">Attach Work Files (optional)</label>
+                                <input
+                                  type="file"
+                                  multiple
+                                  onChange={(e) => handleTaskFileChange(task.id, e.target.files)}
+                                  className="ta-input !py-1.5 !text-sm"
+                                />
+                                {(taskFiles[task.id] || []).length > 0 && (
+                                  <p className="mt-1 text-xs text-gray-500">{(taskFiles[task.id] || []).length} file(s) selected</p>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => submitTaskWithFiles(task.id, 'pending_review')}
+                                disabled={respondingTaskId === task.id}
+                                className="ta-btn-primary !px-4 !py-2 !text-sm disabled:opacity-60"
+                              >
+                                Submit to Manager
+                              </button>
+                            </div>
+                          )}
+                          {isActionableEmployerTaskForEmployee(task) && (
+                            <div className="space-y-3">
+                              <p className="text-sm font-semibold text-gray-700">Submit Task Response</p>
+                              {taskError && <p className="text-xs text-danger">{taskError}</p>}
+                              <div>
+                                <label className="ta-label !mb-1">Task Update / Notes</label>
+                                <textarea
+                                  value={taskTexts[task.id] || ''}
+                                  onChange={(e) => handleTaskTextChange(task.id, e.target.value)}
+                                  className="ta-input !py-2 !text-sm"
+                                  rows={4}
+                                  placeholder="Write what you have done or any blocker for the employer"
+                                />
+                              </div>
+                              <div>
+                                <label className="ta-label !mb-1">Attach Work Files (optional)</label>
+                                <input
+                                  type="file"
+                                  multiple
+                                  onChange={(e) => handleTaskFileChange(task.id, e.target.files)}
+                                  className="ta-input !py-1.5 !text-sm"
+                                />
+                                {(taskFiles[task.id] || []).length > 0 && (
+                                  <p className="mt-1 text-xs text-gray-500">{(taskFiles[task.id] || []).length} file(s) selected</p>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => submitTaskWithFiles(task.id, 'pending_review')}
+                                disabled={respondingTaskId === task.id}
+                                className="ta-btn-primary !px-4 !py-2 !text-sm disabled:opacity-60"
+                              >
+                                Submit to Employer
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>
