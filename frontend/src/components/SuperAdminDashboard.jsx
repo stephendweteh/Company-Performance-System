@@ -485,7 +485,6 @@ export const SuperAdminDashboard = ({ onBrandingUpdated }) => {
           <p className="text-sm text-gray-400 mt-0.5">Full user management CRUD and system overview</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={openCreateForm} className="ta-btn-primary">Create User</button>
           <button onClick={loadDashboard} className="ta-btn-secondary">Refresh</button>
         </div>
       </div>
@@ -657,8 +656,9 @@ export const SuperAdminDashboard = ({ onBrandingUpdated }) => {
       )}
 
       <div className="ta-card">
-        <div className="ta-card-header">
+        <div className="ta-card-header flex items-center justify-between">
           <h3 className="font-semibold text-sidebar">User Management</h3>
+          <button onClick={openCreateForm} className="ta-btn-primary">Create User</button>
         </div>
         <div className="ta-card-body">
           <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end">
