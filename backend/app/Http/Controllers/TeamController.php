@@ -25,7 +25,7 @@ class TeamController extends Controller
 
     protected function canView($user)
     {
-        return $user && in_array($user->role, ['employer', 'manager', 'super_admin']);
+        return $user && in_array($user->role, ['admin', 'employer', 'manager', 'super_admin']);
     }
 
     protected function canManage($user)

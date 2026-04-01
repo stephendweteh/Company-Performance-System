@@ -21,6 +21,16 @@ use Illuminate\Validation\Rule;
 
 class AdminController extends Controller
 {
+    protected function isSuperAdmin(Request $request)
+    {
+        return $request->user() && $request->user()->role === 'super_admin';
+    }
+
+    protected function isAdminOrSuperAdmin(Request $request)
+    {
+        return $request->user() && in_array($request->user()->role, ['super_admin', 'admin'], true);
+    }
+
     protected function appDisplayName(?NotificationChannelSetting $settings = null)
     {
         if ($settings && !empty($settings->app_name)) {
@@ -34,17 +44,23 @@ class AdminController extends Controller
 
     protected function ensureSuperAdmin(Request $request)
     {
-        abort_unless($request->user() && $request->user()->role === 'super_admin', 403, 'Forbidden');
+        abort_unless($this->isSuperAdmin($request), 403, 'Forbidden');
+    }
+
+    protected function ensureAdminOrSuperAdmin(Request $request)
+    {
+        abort_unless($this->isAdminOrSuperAdmin($request), 403, 'Forbidden');
     }
 
     public function overview(Request $request)
     {
-        $this->ensureSuperAdmin($request);
+        $this->ensureAdminOrSuperAdmin($request);
 
         return response()->json([
             'stats' => [
                 'users' => User::count(),
                 'super_admins' => User::where('role', 'super_admin')->count(),
+                'admins' => User::where('role', 'admin')->count(),
                 'employers' => User::where('role', 'employer')->count(),
                 'managers' => User::where('role', 'manager')->count(),
                 'employees' => User::where('role', 'employee')->count(),
@@ -318,9 +334,13 @@ class AdminController extends Controller
 
     public function users(Request $request)
     {
-        $this->ensureSuperAdmin($request);
+        $this->ensureAdminOrSuperAdmin($request);
 
         $query = User::with('company', 'team')->orderBy('name');
+
+        if (!$this->isSuperAdmin($request)) {
+            $query->where('role', '!=', 'super_admin');
+        }
 
         if ($request->filled('role')) {
             $query->where('role', $request->role);
@@ -343,26 +363,34 @@ class AdminController extends Controller
 
     public function showUser(Request $request, User $user)
     {
-        $this->ensureSuperAdmin($request);
+        $this->ensureAdminOrSuperAdmin($request);
+
+        if (!$this->isSuperAdmin($request) && $user->role === 'super_admin') {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
 
         return response()->json($user->load('company', 'team'));
     }
 
     public function storeUser(Request $request)
     {
-        $this->ensureSuperAdmin($request);
+        $this->ensureAdminOrSuperAdmin($request);
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:users,email',
             'password' => 'required|string|min:8',
-            'role' => 'required|in:super_admin,employer,manager,employee',
+            'role' => 'required|in:super_admin,admin,employer,manager,employee',
             'phone' => 'nullable|string|max:30',
             'bio' => 'nullable|string|max:2000',
             'company_id' => 'nullable|exists:companies,id',
             'team_id' => 'nullable|exists:teams,id',
             'membership_status' => 'nullable|in:pending,accepted,rejected',
         ]);
+
+        if (!$this->isSuperAdmin($request) && $validated['role'] === 'super_admin') {
+            return response()->json(['message' => 'Only a super admin can create a super admin user.'], 403);
+        }
 
         $user = User::create([
             'name' => $validated['name'],
@@ -381,7 +409,11 @@ class AdminController extends Controller
 
     public function updateUser(Request $request, User $user)
     {
-        $this->ensureSuperAdmin($request);
+        $this->ensureAdminOrSuperAdmin($request);
+
+        if (!$this->isSuperAdmin($request) && $user->role === 'super_admin') {
+            return response()->json(['message' => 'Only a super admin can update a super admin user.'], 403);
+        }
 
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255',
@@ -393,7 +425,7 @@ class AdminController extends Controller
                 Rule::unique('users', 'email')->ignore($user->id),
             ],
             'password' => 'nullable|string|min:8',
-            'role' => 'sometimes|required|in:super_admin,employer,manager,employee',
+            'role' => 'sometimes|required|in:super_admin,admin,employer,manager,employee',
             'phone' => 'nullable|string|max:30',
             'bio' => 'nullable|string|max:2000',
             'company_id' => 'nullable|exists:companies,id',
@@ -403,6 +435,14 @@ class AdminController extends Controller
 
         if (array_key_exists('role', $validated) && $request->user()->id === $user->id && $validated['role'] !== 'super_admin') {
             return response()->json(['message' => 'You cannot remove your own super admin role.'], 422);
+        }
+
+        if (
+            !$this->isSuperAdmin($request)
+            && array_key_exists('role', $validated)
+            && $validated['role'] === 'super_admin'
+        ) {
+            return response()->json(['message' => 'Only a super admin can assign the super admin role.'], 403);
         }
 
         if (!empty($validated['password'])) {
@@ -418,10 +458,14 @@ class AdminController extends Controller
 
     public function deleteUser(Request $request, User $user)
     {
-        $this->ensureSuperAdmin($request);
+        $this->ensureAdminOrSuperAdmin($request);
 
         if ($request->user()->id === $user->id) {
             return response()->json(['message' => 'You cannot delete your own account.'], 422);
+        }
+
+        if (!$this->isSuperAdmin($request) && $user->role === 'super_admin') {
+            return response()->json(['message' => 'Only a super admin can delete a super admin user.'], 403);
         }
 
         $user->delete();
@@ -431,15 +475,23 @@ class AdminController extends Controller
 
     public function updateUserRole(Request $request, User $user)
     {
-        $this->ensureSuperAdmin($request);
+        $this->ensureAdminOrSuperAdmin($request);
 
         if ($request->user()->id === $user->id) {
             return response()->json(['message' => 'You cannot change your own role.'], 422);
         }
 
+        if (!$this->isSuperAdmin($request) && $user->role === 'super_admin') {
+            return response()->json(['message' => 'Only a super admin can change a super admin role.'], 403);
+        }
+
         $validated = $request->validate([
-            'role' => 'required|in:super_admin,employer,manager,employee',
+            'role' => 'required|in:super_admin,admin,employer,manager,employee',
         ]);
+
+        if (!$this->isSuperAdmin($request) && $validated['role'] === 'super_admin') {
+            return response()->json(['message' => 'Only a super admin can assign the super admin role.'], 403);
+        }
 
         $user->update(['role' => $validated['role']]);
 

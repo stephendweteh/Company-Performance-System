@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import axios from '../services/api';
 import PendingMembershipRequests from './PendingMembershipRequests';
+import AuthContext from '../context/AuthContext';
 
 const emptyForm = {
   name: '',
@@ -36,6 +37,11 @@ const emptyBrandingSettings = {
 };
 
 export const SuperAdminDashboard = ({ onBrandingUpdated }) => {
+  const { user: currentUser } = useContext(AuthContext);
+  const isSuperAdmin = currentUser?.role === 'super_admin';
+  const canManageSuperUsers = isSuperAdmin;
+  const canManageSensitiveSettings = isSuperAdmin;
+
   const [overview, setOverview] = useState(null);
   const [users, setUsers] = useState([]);
   const [deliveryLogs, setDeliveryLogs] = useState([]);
@@ -175,14 +181,19 @@ export const SuperAdminDashboard = ({ onBrandingUpdated }) => {
   const loadDashboard = async () => {
     setLoading(true);
     try {
-      await Promise.all([
+      const dashboardRequests = [
         fetchOverview(),
         fetchUsers(),
-        fetchNotificationDeliveries(),
         fetchCompaniesAndTeams(),
-        fetchBranding(),
-        fetchNotificationChannels(),
-      ]);
+      ];
+
+      if (canManageSensitiveSettings) {
+        dashboardRequests.push(fetchNotificationDeliveries());
+        dashboardRequests.push(fetchBranding());
+        dashboardRequests.push(fetchNotificationChannels());
+      }
+
+      await Promise.all(dashboardRequests);
     } catch (error) {
       setMessage(error.response?.data?.message || 'Failed to load admin dashboard.');
     } finally {
@@ -201,10 +212,14 @@ export const SuperAdminDashboard = ({ onBrandingUpdated }) => {
   }, [roleFilter, membershipFilter]);
 
   useEffect(() => {
+    if (!canManageSensitiveSettings) {
+      return;
+    }
+
     fetchNotificationDeliveries(1).catch((error) => {
       setMessage(error.response?.data?.message || 'Failed to load notification deliveries.');
     });
-  }, [deliveryChannelFilter, deliveryStatusFilter]);
+  }, [deliveryChannelFilter, deliveryStatusFilter, canManageSensitiveSettings]);
 
   const handleSearchSubmit = async (event) => {
     event.preventDefault();
@@ -442,8 +457,9 @@ export const SuperAdminDashboard = ({ onBrandingUpdated }) => {
 
   const statCards = [
     { label: 'Total Users', value: overview?.users ?? '-', color: 'text-primary' },
-    { label: 'Super Admins', value: overview?.super_admins ?? '-', color: 'text-danger' },
+    ...(canManageSuperUsers ? [{ label: 'Super Admins', value: overview?.super_admins ?? '-', color: 'text-danger' }] : []),
     { label: 'Employers', value: overview?.employers ?? '-', color: 'text-warning' },
+    { label: 'Admins', value: overview?.admins ?? '-', color: 'text-primary' },
     { label: 'Managers', value: overview?.managers ?? '-', color: 'text-warning' },
     { label: 'Employees', value: overview?.employees ?? '-', color: 'text-success' },
     { label: 'Pending Memberships', value: overview?.memberships_pending ?? '-', color: 'text-warning' },
@@ -458,6 +474,7 @@ export const SuperAdminDashboard = ({ onBrandingUpdated }) => {
   const roleBadge = (role) =>
     ({
       super_admin: 'ta-badge-danger',
+      admin: 'ta-badge-primary',
       employer: 'ta-badge-warning',
       manager: 'ta-badge-warning',
       employee: 'ta-badge-primary',
@@ -481,7 +498,7 @@ export const SuperAdminDashboard = ({ onBrandingUpdated }) => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-sidebar">Super Admin Dashboard</h2>
+          <h2 className="text-xl font-bold text-sidebar">{isSuperAdmin ? 'Super Admin Dashboard' : 'Admin Dashboard'}</h2>
           <p className="text-sm text-gray-400 mt-0.5">Full user management CRUD and system overview</p>
         </div>
         <div className="flex items-center gap-2">
@@ -512,6 +529,7 @@ export const SuperAdminDashboard = ({ onBrandingUpdated }) => {
         onMembershipUpdated={loadDashboard}
       />
 
+      {canManageSensitiveSettings && (
       <div className="ta-card">
         <div className="ta-card-header">
           <h3 className="font-semibold text-sidebar">Branding</h3>
@@ -581,6 +599,7 @@ export const SuperAdminDashboard = ({ onBrandingUpdated }) => {
           </form>
         </div>
       </div>
+      )}
 
       {showForm && (
         <div className="ta-card">
@@ -605,7 +624,8 @@ export const SuperAdminDashboard = ({ onBrandingUpdated }) => {
               <div>
                 <label className="ta-label">Role</label>
                 <select name="role" value={formData.role} onChange={handleFormChange} className="ta-input">
-                  <option value="super_admin">Super Admin</option>
+                  {canManageSuperUsers && <option value="super_admin">Super Admin</option>}
+                  <option value="admin">Admin</option>
                   <option value="employer">Employer</option>
                   <option value="manager">Manager</option>
                   <option value="employee">Employee</option>
@@ -676,7 +696,8 @@ export const SuperAdminDashboard = ({ onBrandingUpdated }) => {
               <label className="ta-label">Role</label>
               <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="ta-input">
                 <option value="all">All roles</option>
-                <option value="super_admin">Super Admin</option>
+                {canManageSuperUsers && <option value="super_admin">Super Admin</option>}
+                <option value="admin">Admin</option>
                 <option value="employer">Employer</option>
                 <option value="manager">Manager</option>
                 <option value="employee">Employee</option>
@@ -730,7 +751,8 @@ export const SuperAdminDashboard = ({ onBrandingUpdated }) => {
                         disabled={(user.membership_status || 'accepted') !== 'accepted'}
                         title={(user.membership_status || 'accepted') !== 'accepted' ? 'Quick role change is only available for accepted users.' : ''}
                       >
-                        <option value="super_admin">Super Admin</option>
+                        {canManageSuperUsers && <option value="super_admin">Super Admin</option>}
+                        <option value="admin">Admin</option>
                         <option value="employer">Employer</option>
                         <option value="manager">Manager</option>
                         <option value="employee">Employee</option>
@@ -763,6 +785,7 @@ export const SuperAdminDashboard = ({ onBrandingUpdated }) => {
         </div>
       </div>
 
+      {canManageSensitiveSettings && (
       <div className="ta-card">
         <div className="ta-card-header">
           <h3 className="font-semibold text-sidebar">Email and SMS Gateway Connections</h3>
@@ -856,7 +879,9 @@ export const SuperAdminDashboard = ({ onBrandingUpdated }) => {
           </form>
         </div>
       </div>
+      )}
 
+      {canManageSensitiveSettings && (
       <div className="ta-card">
         <div className="ta-card-header flex items-center justify-between">
           <div>
@@ -952,8 +977,10 @@ export const SuperAdminDashboard = ({ onBrandingUpdated }) => {
           )}
         </div>
       </div>
+      )}
 
       {/* ── Data Reset ── */}
+      {canManageSensitiveSettings && (
       <div className="ta-card border-danger/40">
         <div className="ta-card-header flex items-center justify-between">
           <div>
@@ -992,6 +1019,7 @@ export const SuperAdminDashboard = ({ onBrandingUpdated }) => {
           </button>
         </div>
       </div>
+      )}
     </div>
   );
 };

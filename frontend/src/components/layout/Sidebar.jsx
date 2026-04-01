@@ -91,12 +91,13 @@ const navLinks = [
   { label: 'Employer Groups', tab: 'employer_groups', roles: ['manager', 'super_admin'],                   icon: icons.employer_groups },
   { label: 'Performance',   tab: 'performance',   roles: ['manager'],                                       icon: icons.performance },
   { label: 'Companies',     tab: 'companies',     roles: ['employer', 'manager', 'super_admin'],             icon: icons.companies },
-  { label: 'Admin Panel',   tab: 'admin',         roles: ['super_admin'],                         icon: icons.admin },
+  { label: 'Admin Panel',   tab: 'admin',         roles: ['super_admin', 'admin'],                icon: icons.admin },
 ];
 
 /* ── role pill ────────────────────────────────────────────── */
 const rolePill = {
   super_admin: 'bg-primary/20 text-primary',
+  admin: 'bg-primary/20 text-primary',
   employer:    'bg-success/20 text-success',
   manager:     'bg-warning/20 text-warning',
   employee:    'bg-warning/20 text-warning',
